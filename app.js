@@ -37,6 +37,16 @@ const stdOf = (uid) => ({ ...DEFAULT_STD, ...(docOf(uid).std || {}) });
 const autoIn = (e, std) => (e && e.in) || (e && e.type === "am" ? "13:00" : (std || DEFAULT_STD).start);
 // 주말·공휴일 = 특근일
 const isOffDay = (k) => { const [y, m, d] = k.split("-").map(Number); const w = new Date(y, m - 1, d).getDay(); return w === 0 || w === 6 || !!HOLIDAYS[k]; };
+// 퇴근을 안 찍은 지난 평일은 정규 근무(정규 출근~17:00 퇴근, 잔업 0)로 간주. 연차·반차·특근·주말·공휴일은 제외.
+// 그 사람의 첫 기록일부터만 적용(가입 전 날짜는 세지 않음). 실제 기록은 만들지 않고 계산할 때만 사용.
+function effDay(uid, k, e) {
+  if (e && (e.out || e.type === "leave" || e.type === "am" || e.type === "pm" || e.type === "holiday")) return e;
+  if (isOffDay(k) || k >= dkey(new Date())) return e;
+  const keys = Object.keys(docOf(uid).days); if (!keys.length) return e;
+  const first = keys.reduce((a, b) => (a < b ? a : b)); if (k < first) return e;
+  const std = stdOf(uid);
+  return { ...(e || {}), type: (e && e.type) || "work", in: (e && e.in) || std.start, out: std.end, ot: 0, auto: true };
+}
 
 // ---------------- state ----------------
 const S = {
@@ -432,11 +442,12 @@ function renderCalendar() {
     add(cell, "d", d);
     if (HOLIDAYS[k]) add(cell, "hn", HOLIDAYS[k]);
     // 월 합계 (보고 있는 사람 기준)
-    if (e) {
-      if (isLeave(e.type)) leaveDays += LEAVE_DAYS[e.type];
-      if (e.ot) otSum += e.ot;
-      if (e.type === "holiday") hwSum += e.hw || 0;
-      if (e.out && e.type !== "leave") workDays++;
+    const ee = effDay(uid, k, e);
+    if (ee) {
+      if (isLeave(ee.type)) leaveDays += LEAVE_DAYS[ee.type];
+      if (ee.ot) otSum += ee.ot;
+      if (ee.type === "holiday") hwSum += ee.hw || 0;
+      if (ee.out && ee.type !== "leave") workDays++;
     }
     // 모든 사람: 같은 순서·같은 색으로 "이름 잔업시간"
     people.forEach((pu) => {
@@ -465,7 +476,7 @@ function renderCalendar() {
 
 function renderTeam() {
   const tb = $("#team-body"); tb.innerHTML = "";
-  const k = dkey(new Date()), mk_ = mkey(S.month);
+  const k = dkey(new Date());
   $("#team-title").textContent = `팀 현황 · ${S.month.getMonth() + 1}월`;
   $("#admin-row").hidden = !S.isAdmin;
   $("#btn-members").textContent = S.requests.length ? `멤버 관리 (승인 대기 ${S.requests.length})` : "멤버 관리";
@@ -477,7 +488,11 @@ function renderTeam() {
   list.forEach((uid) => {
     const doc = docOf(uid), e = doc.days[k] || {};
     let otM = 0, hwM = 0, wd = 0;
-    Object.entries(doc.days).forEach(([dk, v]) => { if (dk.startsWith(mk_)) { otM += v.ot || 0; hwM += v.hw || 0; if (v.out && v.type !== "leave") wd++; } });
+    const yy = S.month.getFullYear(), mm = S.month.getMonth(), lastD = new Date(yy, mm + 1, 0).getDate();
+    for (let d = 1; d <= lastD; d++) {
+      const dk = dkey(new Date(yy, mm, d)), v = effDay(uid, dk, doc.days[dk]); if (!v) continue;
+      otM += v.ot || 0; hwM += v.hw || 0; if (v.out && v.type !== "leave") wd++;
+    }
     // 출근은 퇴근을 누를 때 함께 기록됨: 퇴근 전에는 "미기록" (날이 바뀌었다고 근무중으로 보지 않음)
     const off = isOffDay(k);
     let st = off ? ["none", "휴무"] : ["none", "미기록"];
@@ -601,7 +616,8 @@ function openCheckout() {
 }
 
 function openDay(uid, k) {
-  const e = docOf(uid).days[k] || {}, std = stdOf(uid);
+  // 퇴근 안 찍은 지난 평일은 정규 근무 시각(08:00~17:00)으로 채워서 보여줌
+  const e = effDay(uid, k, docOf(uid).days[k]) || {}, std = stdOf(uid);
   const editable = canWrite(uid);
   const [y, mo, d] = k.split("-").map(Number); const w = new Date(y, mo - 1, d).getDay();
   let type = e.type || (isOffDay(k) ? "holiday" : "work"), ot = e.ot || 0, hw = e.hw || 0, noOT = !!e.noOT;
@@ -652,6 +668,8 @@ function openDay(uid, k) {
       const note = $("#dy-note").value.trim();
       let out = $("#dy-out").value;
       let inT = $("#dy-in").value;
+      // 자동으로 채운 17:00을 그대로 두고 잔업만 골랐으면 퇴근은 잔업에 맞춰 다시 계산
+      if (e.auto && out === e.out && touched) out = "";
       // 퇴근 시각 없이 잔업만 고른 경우: 퇴근 = 잔업 시작(17:30) + 잔업 시간 (예: 2h → 19:30). 전에는 잔업이 0으로 지워져 달력에 안 나왔음
       if (!out && touched && !noOT && type !== "leave" && type !== "holiday" && ot > 0) {
         const m = toMin(std.otStart || DEFAULT_STD.otStart) + Math.round(ot * 60);
