@@ -33,6 +33,8 @@ const HW_CHIPS = [2, 4, 6, 8, 9, 10];
 const DEFAULT_STD = { start: "08:00", end: "17:00", otStart: "17:30" };
 const LUNCH = ["12:00", "13:00"];
 const stdOf = (uid) => ({ ...DEFAULT_STD, ...(docOf(uid).std || {}) });
+// 자동 출근 시각: 기록된 값 > 오전반차 13:00 > 정규 출근
+const autoIn = (e, std) => (e && e.in) || (e && e.type === "am" ? "13:00" : (std || DEFAULT_STD).start);
 // 주말·공휴일 = 특근일
 const isOffDay = (k) => { const [y, m, d] = k.split("-").map(Number); const w = new Date(y, m - 1, d).getDay(); return w === 0 || w === 6 || !!HOLIDAYS[k]; };
 
@@ -49,7 +51,7 @@ const nameOf = (uid) => docOf(uid).nick || docOf(uid).name || (uid === S.myId ? 
 const canWrite = (uid) => uid === S.myId || S.isAdmin;
 
 // ---------------- store: demo ----------------
-const DEMO_KEY = "geuntae-demo-v3";
+const DEMO_KEY = "geuntae-demo-v4";
 function demoStore() {
   let data;
   try { data = JSON.parse(localStorage.getItem(DEMO_KEY) || "null"); } catch (_) { data = null; }
@@ -79,6 +81,7 @@ function buildDemo() {
       const p = pattern[(d + seed) % pattern.length];
       if (p === "leave") { days[k] = { type: "leave" }; continue; }
       if (p === "am") { days[k] = { type: "am", in: "13:00", out: "17:05", ot: 0 }; continue; }
+      if (p === "pm") { days[k] = { type: "pm", in: "08:00", out: "12:00", ot: 0 }; continue; }
       days[k] = { type: "work", in: `07:${pad(40 + ((d * 7 + seed) % 19))}`, out: p, ot: suggestOT(p, DEFAULT_STD) };
     }
     return { name, nick: "", site, std: { ...DEFAULT_STD }, days };
@@ -88,6 +91,8 @@ function buildDemo() {
     demo_me: mk(1, "예시) 한빛전자 평택공장", "예시 사용자", A),
     demo_b: mk(3, "예시) 대성정밀 2공장", "김상주", A.slice().reverse()),
     demo_c: mk(5, "예시) 한빛전자 평택공장", "이현장", A),
+    demo_d: mk(7, "", "박정비", ["17:05", "18:40", "17:10", "leave", "19:35", "17:02", "18:05"]),
+    demo_e: mk(2, "", "최설비", ["18:35", "17:05", "20:10", "17:00", "pm", "17:20", "19:00"]),
   };
   // 주말 특근 예시: 이번 달 첫 토요일
   for (let d = 1; d < now.getDate(); d++) {
@@ -312,7 +317,7 @@ function renderHeader() {
   } else if (S.stale) { b.hidden = false; b.textContent = "오프라인 상태입니다. 기록은 저장해 두었다가 연결되면 자동으로 올라갑니다."; }
   else b.hidden = true;
   const who = $("#whoami"); who.innerHTML = "";
-  who.append(el("b", null, nameOf(S.myId)), ` ✎ · ${docOf(S.myId).site || "고객사 미지정"}`);
+  who.append(el("b", null, nameOf(S.myId)), " ✎");
   const badge = $("#req-badge");
   badge.hidden = !(S.isAdmin && S.requests.length); badge.textContent = S.requests.length;
 }
@@ -331,8 +336,8 @@ function renderPunch() {
   if (!mine) return;
 
   $("#today-label").textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 (${DOW[now.getDay()]})${HOLIDAYS[k] ? " · " + HOLIDAYS[k] : ""}`;
-  $("#site-name").textContent = docOf(uid).site || "미지정";
   const e = docOf(uid).days[k] || {};
+  const std = stdOf(uid);
   const fullLeave = e.type === "leave";
   $$("#leave-row button").forEach((b) => b.setAttribute("aria-pressed", e.type === b.dataset.type));
 
@@ -341,27 +346,49 @@ function renderPunch() {
   if (fullLeave) { setBtn(bi, "done", "연차", "오늘은 연차입니다"); setBtn(bo, "done", "—", "기록 없음"); }
   else {
     const hw = e.type === "holiday" || (!e.type && isOffDay(k));
-    if (e.in) setBtn(bi, "done", e.in, hw ? "특근 출근 · 눌러서 수정" : "출근 완료 · 눌러서 수정");
-    else setBtn(bi, "in", hw ? "특근 출근" : "출근", hw ? `${HOLIDAYS[k] || "주말"} · 특근으로 기록` : e.type === "am" ? "오전반차 · 오후 출근 기록" : "누르면 현재 시각 기록");
-    if (e.out) setBtn(bo, "done", e.out, hw ? `특근 ${fmtH(e.hw || 0)}시간` : `퇴근 완료 · 잔업 ${fmtH(e.ot || 0)}시간`);
-    else setBtn(bo, "out", "퇴근", e.in ? (hw ? "특근 시간 확인" : e.type === "pm" ? "오후반차 · 퇴근 기록" : "잔업 시간 선택") : "출근 먼저 기록");
+    // 출근은 자동 처리 (버튼 비활성)
+    if (hw) setBtn(bi, "done", "특근", `${HOLIDAYS[k] || "주말"} · 퇴근 때 출근시각 입력`);
+    else setBtn(bi, "done", `출근 ${autoIn(e, std)}`, e.type === "am" ? "오전반차 · 자동 처리" : "자동 처리");
+    if (e.out) setBtn(bo, "done", e.out, hw ? `특근 ${fmtH(e.hw || 0)}시간 · 눌러서 수정` : `잔업 ${fmtH(e.ot || 0)}시간 · 눌러서 수정`);
+    else setBtn(bo, "out", "퇴근", hw ? "특근 시간 입력" : e.type === "pm" ? "오후반차 · 퇴근 기록" : "누르면 퇴근·잔업 기록");
   }
-  bi.disabled = bo.disabled = fullLeave;
+  bi.disabled = true;
+  bo.disabled = fullLeave;
 
   const row = $("#stamp-row"); row.innerHTML = "";
-  const std = stdOf(uid);
   const t = document.createElement("span"); t.textContent = `정규 ${std.start}~${std.end} · 점심 ${LUNCH[0]}~${LUNCH[1]} · 잔업 ${std.otStart}부터`; row.append(t);
   const set = document.createElement("button"); set.textContent = "내 설정"; set.onclick = openSettings; row.append(set);
 }
 
-function othersOn(k, exceptUid) {
-  const list = [];
-  Object.keys(S.docs).forEach((uid) => {
-    if (uid === exceptUid) return;
-    const e = S.docs[uid].days[k]; if (!e) return;
-    if (e.ot > 0 || e.hw > 0 || isLeave(e.type)) list.push({ uid, e });
+// 사람별 고정 색상 (6가지). uid 해시로 자리를 잡고, 겹치면 다음 빈 색으로
+const PERSON_COLORS = 6;
+function personOrder() {
+  return Object.keys(S.docs).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : nameOf(a).localeCompare(nameOf(b), "ko")));
+}
+function personColors() {
+  const map = {}, used = new Set();
+  const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+  Object.keys(S.docs).sort().forEach((uid) => {
+    let i = hash(uid) % PERSON_COLORS, n = 0;
+    while (used.has(i) && n < PERSON_COLORS) { i = (i + 1) % PERSON_COLORS; n++; }
+    used.add(i); map[uid] = i;
   });
-  return list.sort((a, b) => ((b.e.ot || 0) + (b.e.hw || 0)) - ((a.e.ot || 0) + (a.e.hw || 0)));
+  return map;
+}
+// 휴대폰용 짧은 이름: 한글 3~4자는 성을 뺀 이름(김상주→상주), 띄어쓰기가 있으면 첫 단어
+function shortName(n) {
+  n = String(n || "").trim();
+  if (/s/.test(n)) n = n.split(/s+/)[0];
+  if (/^[가-힣]{3,4}$/.test(n)) return n.slice(1);
+  return n.slice(0, 3);
+}
+// 그날 표시할 내용: 잔업 / 특근 / 휴가
+function dayMark(e) {
+  if (!e) return null;
+  if (e.type === "holiday" && (e.hw > 0 || e.out)) return { cls: "hw", text: `특${fmtH(e.hw || 0)}h` };
+  if (e.ot > 0) return { cls: "ot", text: `${fmtH(e.ot)}h` };
+  if (isLeave(e.type)) return { cls: "lv", text: e.type === "leave" ? "연차" : e.type === "am" ? "오전" : "오후" };
+  return null;
 }
 
 function renderCalendar() {
@@ -370,54 +397,47 @@ function renderCalendar() {
   $("#month-title").textContent = `${y}년 ${m + 1}월`;
   $$(".dows").forEach((dows) => {
     if (dows.childElementCount) return;
-    DOW.forEach((d, i) => { const el = document.createElement("div"); el.className = "dow" + (i === 0 ? " sun" : i === 6 ? " sat" : ""); el.textContent = d; dows.append(el); });
+    DOW.forEach((d, i) => { const x = document.createElement("div"); x.className = "dow" + (i === 0 ? " sun" : i === 6 ? " sat" : ""); x.textContent = d; dows.append(x); });
   });
   const grid = $("#days"); grid.innerHTML = "";
   const first = new Date(y, m, 1).getDay(), last = new Date(y, m + 1, 0).getDate();
   const todayK = dkey(new Date());
+  const people = personOrder(), colors = personColors();
   for (let i = 0; i < first; i++) { const b = document.createElement("div"); b.className = "day blank"; grid.append(b); }
   let workDays = 0, otSum = 0, leaveDays = 0, hwSum = 0;
   const add = (cell, cls, text) => { const s = document.createElement("span"); s.className = cls; s.textContent = text; cell.append(s); return s; };
-  // parts: [텍스트, 좁은 화면에서 숨김 여부]
-  const addP = (cell, cls, parts) => { const s = add(cell, cls, ""); parts.forEach(([t, hide]) => s.append(hide ? el("span", "lw", t) : t)); return s; };
   for (let d = 1; d <= last; d++) {
     const dt = new Date(y, m, d), k = dkey(dt), w = dt.getDay(), e = doc.days[k];
     const cell = document.createElement("button");
     cell.className = "day" + (w === 0 ? " sun" : w === 6 ? " sat" : "") + (HOLIDAYS[k] ? " hol" : "") + (k === todayK ? " today" : "");
     cell.setAttribute("aria-label", `${m + 1}월 ${d}일`);
     add(cell, "d", d);
-    if (HOLIDAYS[k] && !e) add(cell, "hn", HOLIDAYS[k]);
+    if (HOLIDAYS[k]) add(cell, "hn", HOLIDAYS[k]);
+    // 월 합계 (보고 있는 사람 기준)
     if (e) {
-      if (isLeave(e.type)) { addP(cell, "pill lv", LEAVE_PARTS[e.type]); leaveDays += LEAVE_DAYS[e.type]; }
-      if (e.in) add(cell, "t-in", "▸" + e.in);
-      if (e.out) add(cell, "t-out", "◂" + e.out);
-      else if (e.in && k === todayK) add(cell, "pill live", "근무중");
-      if (e.ot) { addP(cell, "pill ot", [["잔업 ", 1], [fmtH(e.ot) + "h", 0]]); otSum += e.ot; }
-      if (e.type === "holiday") { addP(cell, "pill hw", e.hw ? [["특근 ", 1], [fmtH(e.hw) + "h", 0]] : [["특근", 0]]); hwSum += e.hw || 0; }
-      if (e.type === "trip") add(cell, "pill lv", TYPES[e.type]);
-      if (e.in) workDays++;
+      if (isLeave(e.type)) leaveDays += LEAVE_DAYS[e.type];
+      if (e.ot) otSum += e.ot;
+      if (e.type === "holiday") hwSum += e.hw || 0;
+      if (e.out && e.type !== "leave") workDays++;
     }
-    // 다른 사람: 이름 · 잔업(특근) 시간 / 휴가
-    const others = othersOn(k, uid);
-    const MAX = 2;
-    others.slice(0, MAX).forEach(({ uid: ou, e: oe }) => {
-      if (oe.ot > 0 || oe.hw > 0) {
-        const r = document.createElement("span"); r.className = oe.hw > 0 ? "who-ot hw" : "who-ot";
-        const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = nameOf(ou);
-        const h = document.createElement("b"); h.textContent = oe.hw > 0 ? `특${fmtH(oe.hw)}h` : fmtH(oe.ot) + "h";
-        r.append(nm, h); cell.append(r);
-      } else {
-        const r = add(cell, "who-lv", "");
-        r.append(el("span", "nm", nameOf(ou) + " "));
-        LEAVE_PARTS[oe.type].forEach(([t, hide]) => r.append(hide ? el("span", "lw", t) : t));
-      }
+    // 모든 사람: 같은 순서·같은 색으로 "이름 잔업시간"
+    people.forEach((pu) => {
+      const mk = dayMark(S.docs[pu].days[k]); if (!mk) return;
+      const r = document.createElement("span");
+      r.className = `pc ${mk.cls}${pu === uid ? " me" : ""}`;
+      r.style.setProperty("--pc", `var(--p${colors[pu]})`);
+      r.append(el("span", "nm nm-full", nameOf(pu)), el("span", "nm nm-short", shortName(nameOf(pu))), el("b", null, mk.text));
+      cell.append(r);
     });
-    if (others.length > MAX) add(cell, "more", `+${others.length - MAX}명`);
     cell.onclick = () => openDay(uid, k);
     grid.append(cell);
   }
+  // 범례: 사람별 색 + 표기 설명
+  const lg = $("#legend"); lg.innerHTML = "";
+  people.forEach((pu) => { const s = el("span", "lg-p", nameOf(pu)); s.style.setProperty("--pc", `var(--p${colors[pu]})`); lg.append(s); });
+  lg.append(el("span", "lg-k", "숫자=잔업 · 특=특근"));
   const sum = $("#sum"); sum.innerHTML = "";
-  [["근무일", workDays + "일", ""], ["잔업 합계", fmtH(otSum) + "h", "o"], ["특근 합계", fmtH(hwSum) + "h", "h"], ["연차·반차", fmtH(leaveDays) + "일", ""]]
+  [["근무", workDays + "일", ""], ["잔업", fmtH(otSum) + "h", "o"], ["특근", fmtH(hwSum) + "h", "h"], ["연차", fmtH(leaveDays) + "일", ""]]
     .forEach(([l, v, c]) => {
       const d = document.createElement("div"); d.className = c;
       const s = document.createElement("small"); s.textContent = l; const st = document.createElement("strong"); st.textContent = v;
@@ -445,12 +465,12 @@ function renderTeam() {
     else if (e.out) st = ["left", "퇴근"]; else if (e.in) st = ["working", e.type === "holiday" ? "특근중" : "근무중"];
     const tr = document.createElement("tr"); tr.className = "click";
     const todayExtra = e.out ? (e.type === "holiday" ? `특 ${fmtH(e.hw || 0)}h` : fmtH(e.ot || 0) + "h") : "—";
-    const cells = [nameOf(uid) + (uid === S.myId ? " (나)" : ""), doc.site || "—", null, e.in || "—", e.out || "—", todayExtra, fmtH(otM) + "h", fmtH(hwM) + "h", wd + "일"];
+    const cells = [nameOf(uid) + (uid === S.myId ? " (나)" : ""), null, e.in || "—", e.out || "—", todayExtra, fmtH(otM) + "h", fmtH(hwM) + "h", wd + "일"];
     cells.forEach((c, i) => {
       const td = document.createElement("td");
-      if (i === 2) { const s = document.createElement("span"); s.className = "status " + st[0]; s.textContent = st[1]; td.append(s); }
+      if (i === 1) { const s = document.createElement("span"); s.className = "status " + st[0]; s.textContent = st[1]; td.append(s); }
       else td.textContent = c;
-      if (i >= 3) td.className = "num";
+      if (i >= 2) td.className = "num";
       tr.append(td);
     });
     tr.onclick = () => { S.viewUid = uid; S.tab = "me"; render(); window.scrollTo({ top: 0 }); };
@@ -515,8 +535,10 @@ function otPicker(container, init, onChange, disabled, label = "잔업 시간", 
 }
 
 function openCheckout() {
-  const uid = S.myId, k = dkey(new Date()), e = docOf(uid).days[k] || {};
-  const std = stdOf(uid), nowT = hm(new Date());
+  const uid = S.myId, k = dkey(new Date()), std = stdOf(uid), nowT = hm(new Date());
+  const cur = docOf(uid).days[k] || {};
+  // 출근은 자동: 정규 출근 시각(오전반차는 13:00), 주말·공휴일은 특근
+  const e = { ...cur, type: cur.type || (isOffDay(k) ? "holiday" : "work"), in: autoIn(cur, std) };
   const hwDay = e.type === "holiday";
   const calc = (inT, outT) => hwDay ? holidayHours(inT, outT, std) : (e.type === "pm" ? 0 : suggestOT(outT, std));
   let val = e.out ? (hwDay ? e.hw || 0 : e.ot || 0) : calc(e.in, nowT);
@@ -618,7 +640,6 @@ function openSettings() {
   const uid = S.myId, doc = docOf(uid), std = stdOf(uid);
   sheet((sh) => {
     sh.append(el("h3", null, "내 설정"), el("p", "hint", "잔업은 잔업 시작 시각부터 퇴근까지 30분 단위로 계산합니다. 점심 12:00~13:00 고정."));
-    sh.append(field("st-site", "상주 고객사", "text", doc.site, { placeholder: "예: 한빛전자 평택공장" }));
     sh.append(field("st-nick", "표시 이름 (달력·팀 현황에 보이는 이름)", "text", doc.nick, { placeholder: "예: 김상주", maxlength: "20" }));
     const two = el("div", "two"); two.append(field("st-start", "정규 출근", "time", std.start), field("st-end", "정규 퇴근", "time", std.end)); sh.append(two);
     sh.append(field("st-ot", "잔업 시작", "time", std.otStart));
@@ -627,7 +648,7 @@ function openSettings() {
     act.append(btn("ghost", "취소", closeSheet), btn("primary green", "저장", () => {
       const nick = $("#st-nick").value.trim();
       if (!nick) { toast("표시 이름을 입력하세요"); $("#st-nick").focus(); return; }
-      saveProfile(uid, { site: $("#st-site").value.trim(), nick, std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
+      saveProfile(uid, { nick, std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
       closeSheet(); toast("설정을 저장했습니다");
     }));
     sh.append(act);
@@ -675,39 +696,6 @@ function openMembers() {
   });
 }
 
-function openCopy() {
-  const uid = S.viewUid, doc = docOf(uid), y = S.month.getFullYear(), m = S.month.getMonth();
-  const lines = [`[${y}-${pad(m + 1)} 근태] ${nameOf(uid)} / ${doc.site || "고객사 미지정"}`];
-  let ot = 0, lv = 0, hwT = 0;
-  Object.keys(doc.days).filter((k) => k.startsWith(mkey(S.month))).sort().forEach((k) => {
-    const e = doc.days[k]; const [, mo, d] = k.split("-"); const w = DOW[new Date(k + "T00:00").getDay()];
-    let s = `${mo}/${d}(${w}) `;
-    if (e.type === "leave") { s += "연차"; lv += 1; }
-    else {
-      s += `${e.in || "--:--"}~${e.out || "--:--"}`;
-      if (e.ot) { s += ` 잔업 ${fmtH(e.ot)}h`; ot += e.ot; }
-      if (e.hw) { s += ` 특근 ${fmtH(e.hw)}h`; hwT += e.hw; }
-      if (e.type && e.type !== "work") s += ` (${e.type === "holiday" && HOLIDAYS[k] ? HOLIDAYS[k] + " " : ""}${TYPES[e.type]})`;
-      if (isLeave(e.type)) lv += LEAVE_DAYS[e.type];
-    }
-    if (e.note) s += ` - ${e.note}`;
-    lines.push(s);
-  });
-  lines.push(`잔업 합계 ${fmtH(ot)}h · 특근 합계 ${fmtH(hwT)}h · 연차 사용 ${fmtH(lv)}일`);
-  const text = lines.join("\n");
-  sheet((sh) => {
-    sh.append(el("h3", null, "월간 근태 텍스트"), el("p", "hint", "근태 시스템이나 메신저에 붙여넣을 수 있습니다."));
-    const ta = el("textarea", "copybox"); ta.id = "copy-text"; ta.readOnly = true; ta.value = text;
-    const f = el("div", "field"); f.append(ta); sh.append(f);
-    const act = el("div", "sheet-actions");
-    act.append(btn("ghost", "닫기", closeSheet), btn("primary", "복사", () => {
-      const fallback = () => { ta.select(); toast("텍스트를 선택했습니다. Ctrl+C로 복사하세요"); };
-      try { navigator.clipboard.writeText(text).then(() => toast("복사했습니다"), fallback); } catch (_) { fallback(); }
-    }));
-    sh.append(act);
-  });
-}
-
 // ---------------- helpers ----------------
 function clean(o) { const r = {}; Object.entries(o).forEach(([k, v]) => { if (v !== null && v !== undefined && v !== "") r[k] = v; }); return r; }
 let tt; function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => (t.hidden = true), 2600); }
@@ -715,26 +703,35 @@ let tt; function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidd
 // ---------------- events ----------------
 $("#tab-me").onclick = () => { S.tab = "me"; render(); };
 $("#tab-team").onclick = () => { S.tab = "team"; render(); };
-$$(".prev").forEach((b) => (b.onclick = () => { S.month = new Date(S.month.getFullYear(), S.month.getMonth() - 1, 1); render(); }));
-$$(".next").forEach((b) => (b.onclick = () => { S.month = new Date(S.month.getFullYear(), S.month.getMonth() + 1, 1); render(); }));
+function shiftMonth(n) {
+  S.month = new Date(S.month.getFullYear(), S.month.getMonth() + n, 1); render();
+  const g = $("#days"); g.classList.remove("slide-l", "slide-r"); void g.offsetWidth; g.classList.add(n > 0 ? "slide-l" : "slide-r");
+}
+$$(".prev").forEach((b) => (b.onclick = () => shiftMonth(-1)));
+$$(".next").forEach((b) => (b.onclick = () => shiftMonth(1)));
+
+// 달력 좌우 스와이프: 왼쪽으로 밀면 다음 달, 오른쪽으로 밀면 이전 달
+(() => {
+  const area = document.querySelector("#view-me .cal");
+  let x0 = null, y0 = null, t0 = 0, swiped = false;
+  area.addEventListener("touchstart", (e) => { if (e.touches.length !== 1) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); swiped = false; }, { passive: true });
+  area.addEventListener("touchend", (e) => {
+    if (x0 === null) return;
+    const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - t0 < 800) { swiped = true; shiftMonth(dx < 0 ? 1 : -1); }
+  }, { passive: true });
+  // 스와이프 직후 날짜가 눌려 편집창이 열리지 않도록 막음
+  area.addEventListener("click", (e) => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);
+})();
 $$(".this-month").forEach((b) => (b.onclick = () => { const n = new Date(); S.month = new Date(n.getFullYear(), n.getMonth(), 1); render(); }));
-$("#btn-copy").onclick = openCopy;
-$("#site-chip").onclick = openSettings;
+$("#btn-settings").onclick = openSettings;
+// 화면 폭이 바뀌면(가로/세로 회전) 달력 다시 그림
+matchMedia("(max-width:600px)").addEventListener("change", () => render());
 $("#btn-members").onclick = openMembers;
 
-$("#btn-in").onclick = () => {
-  const uid = S.myId, k = dkey(new Date()), e = docOf(uid).days[k];
-  if (e && e.in) { openDay(uid, k); return; }
-  const t = hm(new Date());
-  const type = (e && e.type) || (isOffDay(k) ? "holiday" : "work");
-  saveDay(uid, k, clean({ ...(e || {}), type, in: t }));
-  toast(type === "holiday" ? `${HOLIDAYS[k] || "주말"} 특근 출근 ${t} 기록됨` : `출근 ${t} 기록됨`);
-};
-$("#btn-out").onclick = () => {
-  const e = docOf(S.myId).days[dkey(new Date())];
-  if (!e || !e.in) { toast("출근을 먼저 눌러주세요"); return; }
-  openCheckout();
-};
+// 출근 버튼은 비활성(자동 출근). 퇴근만 누름
+$("#btn-out").onclick = () => openCheckout();
 
 // 오늘 휴가: 오전반차 / 오후반차 / 연차 (다시 누르면 취소)
 let leaveArm = null;
@@ -785,6 +782,9 @@ $("#btn-setup").onclick = async () => {
   try { await F.setDoc(F.doc(db, "config", "access"), { admins: [S.myEmail], members: [] }); toast("관리자로 등록했습니다"); }
   catch (e) { toast("등록하지 못했습니다. 이미 관리자가 있거나 규칙이 배포되지 않았습니다."); }
 };
+
+// 이미 홈 화면 앱으로 실행 중이면 "앱으로 사용법" 버튼 숨김
+if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) $("#app-guide").hidden = true;
 
 // ---------------- boot ----------------
 if (DEMO) {
