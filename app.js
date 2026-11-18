@@ -598,14 +598,19 @@ function openDay(uid, k) {
     // 잔업 / 특근 선택기 (구분에 따라 하나만 보임)
     const otBox = el("div", "field"); const otPick = otPicker(otBox, ot, (v) => { ot = v; }, !editable);
     const hwBox = el("div", "field"); const hwPick = otPicker(hwBox, hw, (v) => { hw = v; }, !editable, "특근 시간", HW_CHIPS);
+    // 잔업·특근을 직접 고른 경우에만 저장 때 자동 계산으로 덮어쓰지 않음
+    let touched = false;
+    [otBox, hwBox].forEach((b) => b.addEventListener("click", (ev) => { if (ev.target.closest("button")) touched = true; }));
     times.append(otBox, hwBox); times.hidden = type === "leave"; sh.append(times);
     const syncKind = () => { otBox.hidden = type === "holiday"; hwBox.hidden = type !== "holiday"; };
     syncKind();
     const recalc = () => {
       const i = two.querySelector("#dy-in").value, o = two.querySelector("#dy-out").value;
+      touched = false;
       if (type === "holiday") hwPick.set(holidayHours(i, o, std)); else if (o) otPick.set(type === "pm" ? 0 : suggestOT(o, std));
     };
-    two.querySelectorAll("input").forEach((x) => x.addEventListener("change", recalc));
+    // 아이폰은 시간 선택 중 input, 닫을 때 change를 보내므로 둘 다 받음
+    two.querySelectorAll("input").forEach((x) => { x.addEventListener("change", recalc); x.addEventListener("input", recalc); });
     sh.append(field("dy-note", "메모", "text", e.note, { disabled: !editable }));
 
     const act = el("div", "sheet-actions");
@@ -618,9 +623,16 @@ function openDay(uid, k) {
     if (editable) act.append(btn("primary green", "저장", () => {
       const note = $("#dy-note").value.trim();
       const out = $("#dy-out").value;
+      let inT = $("#dy-in").value;
+      // 퇴근을 못 찍은 날 나중에 퇴근 시각만 넣어도: 출근은 정규 출근 시각(오전반차 13:00), 잔업은 퇴근 시각으로 계산
+      if (out && !inT && type !== "holiday") inT = autoIn({ type }, std);
+      if (out && !touched && out !== (e.out || "")) {
+        if (type === "holiday") hw = holidayHours(inT, out, std);
+        else ot = type === "pm" ? 0 : suggestOT(out, std);
+      }
       const entry = type === "leave" ? clean({ type, note })
-        : type === "holiday" ? clean({ type, in: $("#dy-in").value, out, hw: out ? hw : 0, note })
-        : clean({ type, in: $("#dy-in").value, out, ot: out ? ot : 0, note });
+        : type === "holiday" ? clean({ type, in: inT, out, hw: out ? hw : 0, note })
+        : clean({ type, in: inT, out, ot: out ? ot : 0, note });
       saveDay(uid, k, entry); closeSheet(); toast("저장했습니다");
     }));
     sh.append(act);
