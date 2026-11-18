@@ -795,7 +795,13 @@ if (window.ResizeObserver) new ResizeObserver(() => {
 }).observe($("#punch"));
 
 // 이미 홈 화면 앱으로 실행 중이면 "앱으로 사용법" 버튼 숨김
-if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) $("#app-guide").hidden = true;
+if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) { $("#app-guide").hidden = true; document.documentElement.classList.add("standalone"); }
+
+// 확대·축소 막기 (아이폰은 viewport 설정만으로는 두 손가락 확대를 막지 않음)
+["gesturestart", "gesturechange", "gestureend"].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
+document.addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// 가로 화면 고정 시도 (안드로이드 홈 화면 앱에서 동작, 아이폰은 미지원이라 세로 안내 표시)
+try { screen.orientation && screen.orientation.lock && screen.orientation.lock("portrait").catch(() => {}); } catch (_) {}
 
 // 새 버전 바로 반영: github.io는 파일을 휴대폰에 10분간 저장해 두므로,
 // 저장본을 건너뛰고 서버에서 새로 받아 둔 뒤 새로고침한다.
