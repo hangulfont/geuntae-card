@@ -743,12 +743,22 @@ function openMembers() {
       const l = el("div", "list");
       S.requests.forEach((r) => {
         const it = el("div", "it"); it.append(el("span", null, `${r.name || ""} ${r.email}`));
-        it.append(btn(null, "승인", async () => {
+        const acts = el("div", "it-acts");
+        // 거절: 요청만 지움 (한 번 더 눌러야 실행). 거절된 사람은 다시 요청을 보낼 수 있음
+        let armed = false;
+        const rej = btn("reject", "거절", async () => {
+          if (!armed) { armed = true; rej.textContent = "한 번 더 누르면 거절"; return; }
+          try { await F.deleteDoc(F.doc(db, "requests", r.uid)); toast(`${r.name || r.email} 요청을 거절했습니다`); openMembers(); }
+          catch (e) { toast("거절하지 못했습니다. 잠시 후 다시 시도하세요."); }
+        });
+        acts.append(rej);
+        acts.append(btn(null, "승인", async () => {
           await F.updateDoc(accRef, { members: F.arrayUnion(String(r.email).toLowerCase()) });
           // 요청할 때 입력한 이름을 표시 이름으로 미리 넣어 둠
           if (r.name) await F.setDoc(F.doc(db, "att", r.uid), { nick: r.name, email: r.email }, { merge: true }).catch(() => {});
           await F.deleteDoc(F.doc(db, "requests", r.uid)); toast(`${r.email} 승인했습니다`); openMembers();
         }));
+        it.append(acts);
         l.append(it);
       });
       sh.append(l);
