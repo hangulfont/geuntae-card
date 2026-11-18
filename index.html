@@ -89,7 +89,7 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 .today-label{font-size:13px;color:var(--muted);letter-spacing:.02em}
 /* 시계 오른쪽: 오늘 연차·반차·잔업불가인 사람 (이름은 사람별 색) */
 .punch-head > div:first-child{flex:none;white-space:nowrap}
-.today-off{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-content:center;gap:4px;min-width:0}
+.today-off{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-content:flex-end;gap:4px;min-width:0;align-self:flex-end;padding-bottom:0} /* 시계 글자 아래선에 맞춰 내림 */
 .today-off .to{display:inline-flex;align-items:center;border-radius:4px;overflow:hidden;font-size:12px;line-height:1.5;white-space:nowrap;background:color-mix(in srgb,var(--pc) 14%,transparent)}
 .today-off .to .nm{background:var(--pc);color:var(--surface);font-weight:700;padding:0 4px}
 .today-off .to b{padding:0 5px;font-weight:600;color:var(--leave)}
