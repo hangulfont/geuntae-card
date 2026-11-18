@@ -188,8 +188,17 @@ function startApp() {
     let asked = false;
     unsubs.push(store.subscribe((docs) => {
       S.docs = normalize(docs); render();
-      // 표시 이름을 아직 정하지 않았으면 한 번 입력받음 (Google 닉네임 대신)
-      if (!asked && !S.cacheOnly && S.docs[S.myId] && !S.docs[S.myId].nick) { asked = true; openName(true); }
+      // 표시 이름이 아직 없으면: 승인 요청 때 입력한 이름이 있으면 그걸 쓰고(다시 묻지 않음), 없을 때만 한 번 입력받음
+      // (관리자가 '승인' 버튼 대신 이메일로 직접 추가한 경우에도 이름을 두 번 입력하지 않게)
+      if (!asked && !S.cacheOnly && S.docs[S.myId] && !S.docs[S.myId].nick) {
+        asked = true;
+        const reqRef = F.doc(db, "requests", u.uid);
+        F.getDoc(reqRef).then((r) => {
+          const nm = r.exists() ? String(r.data().name || "").trim() : "";
+          if (nm) { saveProfile(S.myId, { nick: nm }); F.deleteDoc(reqRef).catch(() => {}); }
+          else openName(true);
+        }).catch(() => openName(true));
+      }
     }));
     if (S.isAdmin) {
       unsubs.push(F.onSnapshot(F.collection(db, "requests"), (snap) => {
