@@ -1,0 +1,32 @@
+rules_version = '2';
+// 근태카드 Firestore 보안 규칙
+// - config/access : { admins: [이메일], members: [이메일] }  — 처음 로그인한 사람이 관리자가 됨
+// - requests/{uid} : 승인 대기 요청
+// - att/{uid}      : 사람별 근태 { name, email, site, nick, std, days: { "YYYY-MM-DD": {...} } }
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function email() { return request.auth.token.email; }
+    function access() { return get(/databases/$(database)/documents/config/access).data; }
+    function hasAccess() { return exists(/databases/$(database)/documents/config/access); }
+    function isAdmin() { return signedIn() && hasAccess() && email() in access().admins; }
+    function isMember() { return signedIn() && hasAccess() && (email() in access().members || email() in access().admins); }
+
+    match /config/access {
+      allow read: if signedIn();
+      // 최초 1회: 문서가 없을 때 본인만 관리자로 넣어서 만들 수 있음
+      allow create: if signedIn() && request.resource.data.admins == [email()] && request.resource.data.members == [];
+      allow update, delete: if isAdmin();
+    }
+
+    match /requests/{uid} {
+      allow create, update: if signedIn() && request.auth.uid == uid && request.resource.data.email == email();
+      allow read, delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+
+    match /att/{uid} {
+      allow read: if isMember();
+      allow write: if (isMember() && request.auth.uid == uid) || isAdmin();
+    }
+  }
+}
