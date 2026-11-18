@@ -791,6 +791,42 @@ $("#btn-setup").onclick = async () => {
 // 이미 홈 화면 앱으로 실행 중이면 "앱으로 사용법" 버튼 숨김
 if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) $("#app-guide").hidden = true;
 
+// 당겨서 새로고침: 화면 맨 위에서 아래로 반쯤 당겼다 놓으면 새로고침 (홈 화면 앱에서도 동작)
+(() => {
+  const ind = document.createElement("div");
+  ind.id = "ptr"; ind.setAttribute("aria-hidden", "true");
+  ind.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>';
+  document.body.append(ind);
+  const MAX = 130;   // 표시가 내려오는 최대 거리
+  const NEED = 80;   // 이만큼(손가락 약 160px) 당기면 새로고침
+  let y0 = null, d = 0;
+  const set = (v) => {
+    d = v;
+    ind.style.transform = `translate(-50%, ${v - 50}px) rotate(${v * 3}deg)`;
+    ind.style.opacity = Math.min(1, v / 40);
+    ind.classList.toggle("ready", v >= NEED);
+  };
+  addEventListener("touchstart", (e) => {
+    y0 = null;
+    if (e.touches.length !== 1 || scrollY > 0 || document.querySelector(".scrim")) return;
+    y0 = e.touches[0].clientY; ind.style.transition = "none";
+  }, { passive: true });
+  addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    const dy = e.touches[0].clientY - y0;
+    if (dy <= 0 || scrollY > 0) { if (d) set(0); return; }
+    set(Math.min(MAX, dy * 0.5));
+  }, { passive: true });
+  const end = () => {
+    if (y0 === null) return;
+    y0 = null; ind.style.transition = "";
+    if (d >= NEED) { ind.classList.add("spin"); set(NEED); setTimeout(() => location.reload(), 150); }
+    else set(0);
+  };
+  addEventListener("touchend", end, { passive: true });
+  addEventListener("touchcancel", end, { passive: true });
+})();
+
 // ---------------- boot ----------------
 if (DEMO) {
   store = demoStore();
