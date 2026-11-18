@@ -339,8 +339,9 @@ function renderPunch() {
   const e = docOf(uid).days[k] || {};
   const std = stdOf(uid);
   const fullLeave = e.type === "leave";
-  $$("#leave-row button[data-type]").forEach((b) => b.setAttribute("aria-pressed", e.type === b.dataset.type));
-  const nob = $("#leave-row button[data-flag]"); nob.setAttribute("aria-pressed", !!e.noOT); nob.disabled = e.type === "leave";
+  const hwToday = e.type === "holiday" || (!e.type && isOffDay(k)); // 주말·공휴일은 자동 특근
+  $$("#leave-row button[data-type]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.type === "holiday" ? hwToday : e.type === b.dataset.type));
+  const nob = $("#leave-row button[data-flag]"); nob.setAttribute("aria-pressed", !!e.noOT && !hwToday); nob.disabled = e.type === "leave" || hwToday;
 
   const bi = $("#btn-in"), bo = $("#btn-out");
   const setBtn = (b, cls, lbl, sub) => { b.className = "pbtn " + cls; b.querySelector(".lbl").textContent = lbl; b.querySelector(".sub").textContent = sub; };
@@ -348,7 +349,7 @@ function renderPunch() {
   else {
     const hw = e.type === "holiday" || (!e.type && isOffDay(k));
     // 출근은 자동 처리 (버튼 비활성)
-    if (hw) setBtn(bi, "done", "특근", `${HOLIDAYS[k] || "주말"} · 퇴근 때 출근시각 입력`);
+    if (hw) setBtn(bi, "done", "특근", `${HOLIDAYS[k] || (isOffDay(k) ? "주말" : "평일")} · 퇴근 때 출근시각 입력`);
     else if (e.out) setBtn(bi, "done", `출근 ${autoIn(e, std)}`, e.type === "am" ? "오전반차 · 퇴근 때 기록됨" : "퇴근 때 기록됨");
     else setBtn(bi, "done", "출근", `퇴근을 누르면 ${autoIn(e, std)} 출근으로 기록`);
     if (e.out) setBtn(bo, "done", e.out, hw ? `특근 ${fmtH(e.hw || 0)}시간 · 눌러서 수정` : `잔업 ${fmtH(e.ot || 0)}시간 · 눌러서 수정`);
@@ -555,7 +556,7 @@ function openCheckout() {
   const calc = (inT, outT) => hwDay ? holidayHours(inT, outT, std) : (e.type === "pm" || noOT ? 0 : suggestOT(outT, std));
   let val = e.out ? (hwDay ? e.hw || 0 : e.ot || 0) : calc(e.in, nowT);
   sheet((sh) => {
-    sh.append(el("h3", null, hwDay ? `특근 퇴근 · ${HOLIDAYS[k] || "주말"}` : "퇴근 기록"),
+    sh.append(el("h3", null, hwDay ? `특근 퇴근 · ${HOLIDAYS[k] || (isOffDay(k) ? "주말" : "평일")}` : "퇴근 기록"),
       el("p", "hint", hwDay ? "출근~퇴근 시간에서 점심·휴게를 빼고 30분 단위로 특근 시간을 계산했습니다." : noOT ? "오늘은 잔업불가로 표시되어 잔업 없이 퇴근만 기록합니다." : e.type === "pm" ? "오후반차 퇴근입니다. 퇴근 시각을 확인하고 저장하세요." : `잔업은 ${std.otStart}부터 30분 단위로 계산합니다.`));
     const two = el("div", "two");
     two.append(field("co-in", "출근", "time", e.in || std.start), field("co-out", "퇴근", "time", e.out || nowT));
@@ -587,7 +588,7 @@ function openDay(uid, k) {
   const e = docOf(uid).days[k] || {}, std = stdOf(uid);
   const editable = canWrite(uid);
   const [y, mo, d] = k.split("-").map(Number); const w = new Date(y, mo - 1, d).getDay();
-  let type = e.type || (isOffDay(k) ? "holiday" : "work"), ot = e.ot || 0, hw = e.hw || 0;
+  let type = e.type || (isOffDay(k) ? "holiday" : "work"), ot = e.ot || 0, hw = e.hw || 0, noOT = !!e.noOT;
   sheet((sh) => {
     sh.append(el("h3", null, `${mo}월 ${d}일 (${DOW[w]})${HOLIDAYS[k] ? " · " + HOLIDAYS[k] : ""}`),
       el("p", "hint", `${nameOf(uid)}${editable ? "" : " · 보기 전용"}`));
@@ -598,6 +599,10 @@ function openDay(uid, k) {
       b.setAttribute("aria-pressed", v === type); b.disabled = !editable; tc.append(b);
     });
     tl.append(tc); sh.append(tl);
+    // 잔업불가: 켜면 잔업 0 (특근·연차에는 해당 없음)
+    const nl = el("div", "chips");
+    const nb = btn("noot", "잔업불가", () => { noOT = !noOT; nb.setAttribute("aria-pressed", noOT); syncKind(); if (!noOT) recalc(); else otPick.set(0); });
+    nb.setAttribute("aria-pressed", noOT); nb.disabled = !editable; nl.append(nb); sh.append(nl);
     const times = el("div", "field"); times.style.gap = "14px";
     const two = el("div", "two");
     two.append(field("dy-in", "출근", "time", e.in, { disabled: !editable }), field("dy-out", "퇴근", "time", e.out, { disabled: !editable }));
@@ -609,7 +614,7 @@ function openDay(uid, k) {
     let touched = false;
     [otBox, hwBox].forEach((b) => b.addEventListener("click", (ev) => { if (ev.target.closest("button")) touched = true; }));
     times.append(otBox, hwBox); times.hidden = type === "leave"; sh.append(times);
-    const syncKind = () => { otBox.hidden = type === "holiday" || !!e.noOT; hwBox.hidden = type !== "holiday"; };
+    const syncKind = () => { nl.hidden = type === "holiday" || type === "leave"; otBox.hidden = type === "holiday" || noOT; hwBox.hidden = type !== "holiday"; };
     syncKind();
     const recalc = () => {
       const i = two.querySelector("#dy-in").value, o = two.querySelector("#dy-out").value;
@@ -632,7 +637,7 @@ function openDay(uid, k) {
       let out = $("#dy-out").value;
       let inT = $("#dy-in").value;
       // 퇴근 시각 없이 잔업만 고른 경우: 퇴근 = 잔업 시작(17:30) + 잔업 시간 (예: 2h → 19:30). 전에는 잔업이 0으로 지워져 달력에 안 나왔음
-      if (!out && touched && type !== "leave" && type !== "holiday" && ot > 0) {
+      if (!out && touched && !noOT && type !== "leave" && type !== "holiday" && ot > 0) {
         const m = toMin(std.otStart || DEFAULT_STD.otStart) + Math.round(ot * 60);
         out = `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
       }
@@ -643,8 +648,8 @@ function openDay(uid, k) {
         else ot = type === "pm" ? 0 : suggestOT(out, std);
       }
       const entry = type === "leave" ? clean({ type, note })
-        : type === "holiday" ? clean({ type, in: inT, out, hw: out || touched ? hw : 0, note, noOT: e.noOT })
-        : clean({ type, in: inT, out, ot: out && !e.noOT ? ot : 0, note, noOT: e.noOT });
+        : type === "holiday" ? clean({ type, in: inT, out, hw: out || touched ? hw : 0, note })
+        : clean({ type, in: inT, out, ot: out && !noOT ? ot : 0, note, noOT: noOT || null });
       saveDay(uid, k, entry); closeSheet(); toast("저장했습니다");
     }));
     sh.append(act);
@@ -775,15 +780,26 @@ $("#leave-row button[data-flag]").onclick = () => {
   saveDay(uid, k, Object.keys(next).length ? next : null);
   toast(e.noOT ? "잔업불가를 껐습니다" : "오늘 잔업불가로 표시했습니다");
 };
+// 구분을 바꿀 때 이미 찍은 퇴근이 있으면 잔업/특근 시간을 새 구분에 맞게 다시 계산
+function retype(e, t, std) {
+  const r = { ...e, type: t };
+  if (t === "holiday") delete r.noOT;
+  if (r.out) {
+    if (t === "holiday") { r.hw = holidayHours(r.in || std.start, r.out, std); delete r.ot; }
+    else { delete r.hw; r.ot = t === "pm" || r.noOT ? 0 : suggestOT(r.out, std); }
+  }
+  return clean(r);
+}
 $$("#leave-row button[data-type]").forEach((b) => (b.onclick = () => {
-  const uid = S.myId, k = dkey(new Date()), e = docOf(uid).days[k] || {}, t = b.dataset.type;
-  if (e.type === t) { // 취소
-    const rest = clean({ ...e, type: "work" });
-    saveDay(uid, k, rest.in || rest.noOT ? rest : null); toast(`${TYPES[t]} 취소했습니다`); return;
+  const uid = S.myId, k = dkey(new Date()), e = docOf(uid).days[k] || {}, t = b.dataset.type, std = stdOf(uid);
+  const on = t === "holiday" ? e.type === "holiday" || (!e.type && isOffDay(k)) : e.type === t;
+  if (on) { // 취소 → 근무
+    const rest = retype(e, "work", std);
+    saveDay(uid, k, t === "holiday" || rest.in || rest.noOT ? rest : null); toast(`${TYPES[t]} 취소했습니다`); return;
   }
   if (t === "leave" && e.in && leaveArm !== k) { leaveArm = k; toast("출근 기록이 있습니다. 연차를 한 번 더 누르면 연차로 바꿉니다"); return; }
   leaveArm = null;
-  saveDay(uid, k, t === "leave" ? clean({ type: "leave", note: e.note }) : clean({ ...e, type: t }));
+  saveDay(uid, k, t === "leave" ? clean({ type: "leave", note: e.note }) : retype(e, t, std));
   toast(`오늘 ${TYPES[t]}로 기록했습니다`);
 }));
 
