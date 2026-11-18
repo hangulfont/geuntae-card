@@ -87,11 +87,6 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 #viewing{order:0} .cal{order:1} #punch{order:2}
 .punch-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .today-label{font-size:13px;color:var(--muted);letter-spacing:.02em}
-/* 현재 시각 오른쪽: 이번 달 지금까지 잔업 시간·특근(주말·공휴일 출근) 일수 */
-.month-stat{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
-.month-stat span{display:inline-flex;align-items:baseline;gap:4px;background:var(--surface-2);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
-.month-stat b{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ot)}
-.month-stat .h b{color:var(--hw)}
 .clock{font-family:var(--mono);font-size:40px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
 .site-chip{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .site-chip b{color:var(--fg);font-weight:600}
@@ -468,7 +463,6 @@ header.top{gap:8px}
           <div class="today-label" id="today-label"></div>
           <div class="clock" id="clock">--:--</div>
         </div>
-        <div class="month-stat" id="month-stat" aria-label="이번 달 지금까지"></div>
       </div>
       <div class="leave-row" id="leave-row" role="group" aria-label="오늘 휴가·특근·잔업불가">
         <span>오늘</span>
