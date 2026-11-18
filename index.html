@@ -307,6 +307,9 @@ body{word-break:keep-all}
 .chips button.noot[aria-pressed="true"]{background:var(--ot);border-color:var(--ot);color:#fff}
 .pc.me .nm{font-weight:700}
 .pc .nm-short{display:none}
+/* 이름 부분은 본인 색으로 채우고, 오른쪽 잔업·연차 글자는 그대로 */
+.pc{border-left:0;padding-left:0}
+.pc .nm{background:var(--pc);color:var(--surface);padding:0 3px;border-radius:3px 0 0 3px}
 .day .hn{font-size:9.5px;line-height:1.2}
 .legend{justify-content:center;flex-wrap:wrap;gap:4px 10px}
 .legend .lg-p::before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:var(--pc)}
@@ -343,6 +346,9 @@ header.top{gap:8px}
   .pc.no{padding:0 1px;gap:1px}
   .pc.no .nm{flex:none;font-size:8.5px}
   .pc.no b{font-size:7.5px;letter-spacing:-.08em}
+  .pc,.pc.no{border-left:0;padding-left:0}
+  .pc .nm{padding:0 2px}
+  .pc.no .nm{padding:0 1px}
   .legend{font-size:11px;margin-top:6px;white-space:normal;overflow:visible}
   .sum{margin-top:6px}
   #punch{padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));gap:6px}
