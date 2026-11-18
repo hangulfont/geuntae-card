@@ -87,6 +87,13 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 #viewing{order:0} .cal{order:1} #punch{order:2}
 .punch-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .today-label{font-size:13px;color:var(--muted);letter-spacing:.02em}
+/* 시계 오른쪽: 오늘 연차·반차·잔업불가인 사람 (이름은 사람별 색) */
+.punch-head > div:first-child{flex:none;white-space:nowrap}
+.today-off{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-content:center;gap:4px;min-width:0}
+.today-off .to{display:inline-flex;align-items:center;border-radius:4px;overflow:hidden;font-size:12px;line-height:1.5;white-space:nowrap;background:color-mix(in srgb,var(--pc) 14%,transparent)}
+.today-off .to .nm{background:var(--pc);color:var(--surface);font-weight:700;padding:0 4px}
+.today-off .to b{padding:0 5px;font-weight:600;color:var(--leave)}
+.today-off .to.no b{color:var(--muted)}
 .clock{font-family:var(--mono);font-size:40px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
 .site-chip{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .site-chip b{color:var(--fg);font-weight:600}
@@ -463,6 +470,7 @@ header.top{gap:8px}
           <div class="today-label" id="today-label"></div>
           <div class="clock" id="clock">--:--</div>
         </div>
+        <div class="today-off" id="today-off" aria-label="오늘 휴가·잔업불가"></div>
       </div>
       <div class="leave-row" id="leave-row" role="group" aria-label="오늘 휴가·특근·잔업불가">
         <span>오늘</span>

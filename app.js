@@ -336,6 +336,20 @@ function renderPunch() {
   if (!mine) return;
 
   $("#today-label").textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 (${DOW[now.getDay()]})${HOLIDAYS[k] ? " · " + HOLIDAYS[k] : ""}`;
+  // 시계 오른쪽: 오늘 연차·반차·잔업불가인 사람 (나 포함, 달력과 같은 순서·색)
+  {
+    const box = $("#today-off"); box.innerHTML = "";
+    const colors = personColors(), phone = matchMedia("(max-width:600px)").matches;
+    personOrder().forEach((pu) => {
+      const pe = S.docs[pu].days[k]; if (!pe) return;
+      const label = pe.type === "leave" ? "연차" : pe.type === "am" ? (phone ? "오전" : "오전반차") : pe.type === "pm" ? (phone ? "오후" : "오후반차") : pe.noOT && pe.type !== "holiday" ? "잔업불가" : null;
+      if (!label) return;
+      const c = el("span", "to" + (label === "잔업불가" ? " no" : ""));
+      c.style.setProperty("--pc", `var(--p${colors[pu]})`);
+      c.append(el("span", "nm", phone ? shortName(nameOf(pu)) : nameOf(pu)), el("b", null, label));
+      box.append(c);
+    });
+  }
   const e = docOf(uid).days[k] || {};
   const std = stdOf(uid);
   const fullLeave = e.type === "leave";
