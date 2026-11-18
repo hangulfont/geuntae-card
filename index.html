@@ -298,6 +298,9 @@ body{word-break:keep-all}
 .pc b{font-family:var(--mono);font-weight:600;flex:none;color:var(--ot)}
 .pc.hw b{color:var(--hw)}
 .pc.lv b{color:var(--leave);font-family:var(--font)}
+.pc.no b{color:var(--muted);font-family:var(--font)}
+/* 잔업불가 버튼은 휴가와 구분되게 주황색 */
+.leave-row button[data-flag][aria-pressed="true"]{background:var(--ot);border-color:var(--ot);color:#fff}
 .pc.me .nm{font-weight:700}
 .pc .nm-short{display:none}
 .day .hn{font-size:9.5px;line-height:1.2}
@@ -427,6 +430,7 @@ header.top{gap:8px}
         <button data-type="am" aria-pressed="false">오전반차</button>
         <button data-type="pm" aria-pressed="false">오후반차</button>
         <button data-type="leave" aria-pressed="false">연차</button>
+        <button data-flag="noOT" aria-pressed="false" title="오늘은 잔업을 할 수 없음 (달력·팀 현황에 표시)">잔업불가</button>
       </div>
       <div class="btns">
         <button class="pbtn in" id="btn-in">
