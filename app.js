@@ -823,7 +823,7 @@ async function freshReload() {
   try { await Promise.all(APP_FILES.map((u) => fetch(u, { cache: "reload" }))); } catch (_) {}
   location.reload();
 }
-// 배포가 끝나면 열려 있는 앱도 알아서 새 버전으로 바뀜 (1분마다, 그리고 앱으로 돌아올 때 확인)
+// 배포가 끝나면 열려 있는 앱도 알아서 새 버전으로 바뀜 (15초마다, 그리고 앱으로 돌아올 때 확인)
 (() => {
   if (location.protocol !== "https:" && location.hostname !== "localhost") return;
   const sig = async () => {
@@ -844,7 +844,7 @@ async function freshReload() {
     } catch (_) {}
     busy = false;
   };
-  setInterval(check, 60000);
+  setInterval(check, 15000); // 화면이 켜져 있을 때만 확인 (document.hidden이면 건너뜀)
   document.addEventListener("visibilitychange", check);
 })();
 
