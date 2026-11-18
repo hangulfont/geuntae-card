@@ -459,13 +459,18 @@ function renderTeam() {
   list.forEach((uid) => {
     const doc = docOf(uid), e = doc.days[k] || {};
     let otM = 0, hwM = 0, wd = 0;
-    Object.entries(doc.days).forEach(([dk, v]) => { if (dk.startsWith(mk_)) { otM += v.ot || 0; hwM += v.hw || 0; if (v.in) wd++; } });
-    let st = ["none", "미출근"];
-    if (isLeave(e.type) && !e.in) st = ["lv", TYPES[e.type]];
-    else if (e.out) st = ["left", "퇴근"]; else if (e.in) st = ["working", e.type === "holiday" ? "특근중" : "근무중"];
+    Object.entries(doc.days).forEach(([dk, v]) => { if (dk.startsWith(mk_)) { otM += v.ot || 0; hwM += v.hw || 0; if (v.out && v.type !== "leave") wd++; } });
+    // 출근은 자동: 평일은 퇴근 전까지 "근무중", 주말·공휴일은 기록이 있을 때만
+    const off = isOffDay(k);
+    let st = off ? ["none", "휴무"] : ["working", "근무중"];
+    if (e.type === "leave") st = ["lv", "연차"];
+    else if (e.out) st = ["left", "퇴근"];
+    else if (isLeave(e.type)) st = ["lv", TYPES[e.type]];
+    else if (e.type === "holiday") st = ["working", "특근중"];
     const tr = document.createElement("tr"); tr.className = "click";
     const todayExtra = e.out ? (e.type === "holiday" ? `특 ${fmtH(e.hw || 0)}h` : fmtH(e.ot || 0) + "h") : "—";
-    const cells = [nameOf(uid) + (uid === S.myId ? " (나)" : ""), null, e.in || "—", e.out || "—", todayExtra, fmtH(otM) + "h", fmtH(hwM) + "h", wd + "일"];
+    const inT = e.type === "leave" ? "—" : (e.in || (off ? "—" : autoIn(e, stdOf(uid))));
+    const cells = [nameOf(uid) + (uid === S.myId ? " (나)" : ""), null, inT, e.out || "—", todayExtra, fmtH(otM) + "h", fmtH(hwM) + "h", wd + "일"];
     cells.forEach((c, i) => {
       const td = document.createElement("td");
       if (i === 1) { const s = document.createElement("span"); s.className = "status " + st[0]; s.textContent = st[1]; td.append(s); }
