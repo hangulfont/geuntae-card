@@ -338,6 +338,11 @@ header.top{gap:8px}
   .pc{font-size:9.5px;padding:0 2px 0 2px;border-left-width:2px;line-height:1.3}
   .pc .nm-full{display:none}
   .pc .nm-short{display:inline}
+  /* 잔업불가는 4글자라 칸이 좁음: 이름은 그대로, "잔업불가"만 작게 오른쪽 정렬해 한 줄에 */
+  .day{padding-left:1px;padding-right:1px}
+  .pc.no{padding:0 1px;gap:1px}
+  .pc.no .nm{flex:none;font-size:8.5px}
+  .pc.no b{font-size:7.5px;letter-spacing:-.08em}
   .legend{font-size:11px;margin-top:6px;white-space:normal;overflow:visible}
   .sum{margin-top:6px}
   #punch{padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));gap:6px}
