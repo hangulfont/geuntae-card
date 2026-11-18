@@ -219,6 +219,20 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface-2)}
 .status.none{background:var(--surface-2);color:var(--muted)}
 .status.lv{background:var(--leave-soft);color:var(--leave)}
 .empty{padding:28px 12px;text-align:center;color:var(--muted);font-size:14px}
+/* 휴대폰: 팀 현황 표를 사람마다 두 줄 카드로 (1줄 이름·상태·출근·퇴근 / 2줄 오늘 잔업·월 잔업·월 특근·근무일) */
+@media (max-width:600px){
+  .team .tbl-wrap{overflow:visible}
+  .team table,.team tbody{display:block}
+  .team thead{display:none}
+  .team tr{display:grid;grid-template-columns:1.5fr 1.1fr 1fr 1fr;column-gap:6px;row-gap:6px;padding:10px 4px;border-bottom:1px solid var(--line);align-items:center}
+  .team tr:last-child{border-bottom:0}
+  .team td{border:0;padding:0;text-align:left;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+  .team td.num{text-align:left}
+  .team td:first-child{font-weight:700}
+  .team td[data-label]:nth-child(n+3)::before{content:attr(data-label);display:block;font-size:11px;color:var(--muted);font-family:var(--font);font-weight:500;line-height:1.2}
+  .team td.empty{grid-column:1/-1;white-space:normal;text-align:center}
+  .team tr.click:hover td{background:transparent}
+}
 .viewing{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;background:var(--out-soft);border-radius:10px;padding:8px 12px}
 
 /* sheet */
@@ -475,7 +489,7 @@ header.top{gap:8px}
   <section id="view-team" class="wrap" hidden>
     <div class="card team">
       <h2 id="team-title">팀 현황</h2>
-      <p class="team-note">출근·퇴근을 누르면 바로 반영됩니다. 이름을 누르면 그 사람의 달력을 봅니다.</p>
+      <p class="team-note">퇴근을 누르면 바로 반영됩니다. 이름을 누르면 그 사람의 달력을 봅니다.</p>
       <div class="tbl-wrap"><table>
         <thead><tr><th>이름</th><th>오늘</th><th>출근</th><th>퇴근</th><th class="r">오늘 잔업</th><th class="r">월 잔업</th><th class="r">월 특근</th><th class="r">근무일</th></tr></thead>
         <tbody id="team-body"></tbody>

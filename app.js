@@ -481,6 +481,7 @@ function renderTeam() {
       if (i === 1) { const s = document.createElement("span"); s.className = "status " + st[0]; s.textContent = st[1]; td.append(s); }
       else td.textContent = c;
       if (i >= 2) td.className = "num";
+      td.dataset.label = TEAM_COLS[i]; // 휴대폰 카드 보기에서 칸 이름으로 표시
       tr.append(td);
     });
     tr.onclick = () => { S.viewUid = uid; S.tab = "me"; render(); window.scrollTo({ top: 0 }); };
@@ -489,6 +490,7 @@ function renderTeam() {
 }
 
 // ---------------- sheets ----------------
+const TEAM_COLS = ["이름", "오늘", "출근", "퇴근", "오늘 잔업", "월 잔업", "월 특근", "근무일"];
 function closeSheet() { $("#sheet-root").innerHTML = ""; }
 let sheetLocked = false;
 function sheet(build, locked = false) {
