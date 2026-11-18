@@ -90,7 +90,8 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 .clock{font-family:var(--mono);font-size:40px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
 .site-chip{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .site-chip b{color:var(--fg);font-weight:600}
-.btns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.btns .pbtn{min-width:0}
 .pbtn{border:0;border-radius:14px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:112px;justify-content:center;transition:transform .08s}
 .pbtn:active{transform:scale(.98)}
 .pbtn svg{width:30px;height:30px}
@@ -280,7 +281,7 @@ html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:10
 .otpick .chips,.otpick .stepper{justify-content:center}
 .field input[type="time"]{min-width:0;-webkit-appearance:none;appearance:none;min-height:42px;text-align:left}
 /* 홈 화면 앱: iOS 26은 상태바(시계·배터리) 아래 약 35px까지 점점 흐려지는 효과를 넣으므로 그 아래에서 시작 */
-html.standalone{padding-top:calc(env(safe-area-inset-top,0px) + 34px)}
+html.standalone{padding-top:calc(env(safe-area-inset-top,0px) + 18px)}
 /* 휴대폰을 가로로 돌리면 세로로 돌려달라는 안내 (아이폰은 가로 고정을 웹앱에 허용하지 않음) */
 #rotate{display:none}
 @media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
@@ -346,7 +347,16 @@ header.top{gap:8px}
   html{padding-bottom:0}
   body{padding-bottom:calc(var(--punch-h,170px) + 8px)}
   #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 16px - env(safe-area-inset-top,0px))}
-  html.standalone #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 50px - env(safe-area-inset-top,0px))}
+  html.standalone #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 34px - env(safe-area-inset-top,0px))}
+  /* 하단 버튼 크게: 오늘 줄은 5칸 꽉 채운 큰 버튼, 출근·퇴근 버튼도 키움 */
+  .leave-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .leave-row > span{display:none}
+  .leave-row button{min-height:40px;padding:0 2px;font-size:14px;border-radius:10px;white-space:nowrap}
+  .pbtn{min-height:66px}
+  .pbtn svg{width:26px;height:26px}
+  .pbtn .lbl{font-size:20px}
+  .pbtn.done .lbl{font-size:20px}
+  .pbtn .sub{font-size:12px}
   #view-me:not([hidden]){flex:1}
   #view-me .cal{flex:1;display:flex;flex-direction:column}
   #days{flex:1;grid-auto-rows:1fr}
@@ -433,8 +443,8 @@ header.top{gap:8px}
         <button data-type="am" aria-pressed="false">오전반차</button>
         <button data-type="pm" aria-pressed="false">오후반차</button>
         <button data-type="leave" aria-pressed="false">연차</button>
-        <button data-flag="noOT" aria-pressed="false" title="오늘은 잔업을 할 수 없음: 잔업 0으로 기록, 달력·팀 현황에 표시">잔업불가</button>
         <button data-type="holiday" aria-pressed="false" title="오늘을 특근으로 기록 (주말·공휴일은 자동)">특근</button>
+        <button data-flag="noOT" aria-pressed="false" title="오늘은 잔업을 할 수 없음: 잔업 0으로 기록, 달력·팀 현황에 표시">잔업불가</button>
       </div>
       <div class="btns">
         <button class="pbtn in" id="btn-in">
