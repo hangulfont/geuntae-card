@@ -721,6 +721,7 @@ function openSettings() {
     sh.append(field("st-nick", "표시 이름 (달력·팀 현황에 보이는 이름)", "text", doc.nick, { placeholder: "예: 김상주", maxlength: "20" }));
     const two = el("div", "two"); two.append(field("st-start", "정규 출근", "time", std.start), field("st-end", "정규 퇴근", "time", std.end)); sh.append(two);
     sh.append(field("st-ot", "잔업 시작", "time", std.otStart));
+    const imp = btn("ghost", "ERP 출퇴근 기록 붙여넣기", () => openImport(uid)); imp.style.alignSelf = "flex-start"; sh.append(imp);
     const act = el("div", "sheet-actions");
     if (S.mode === "firebase") act.append(btn("danger", "로그아웃", () => { closeSheet(); FBX.A.signOut(FBX.auth); }));
     act.append(btn("ghost", "취소", closeSheet), btn("primary green", "저장", () => {
@@ -730,6 +731,77 @@ function openSettings() {
       closeSheet(); toast("설정을 저장했습니다");
     }));
     sh.append(act);
+  });
+}
+
+// ---- ERP 붙여넣기: "2026-11-02 ... 07:40 20:32" 같은 줄을 날짜별 출근·퇴근으로 기록 ----
+// 한 줄에 날짜(YYYY-MM-DD, YYYY.MM.DD, YYYY/MM/DD)가 있어야 함. 시각이 2개 이상이면 첫 시각=출근, 마지막=퇴근, 1개면 퇴근.
+// "연차"·"오전반차"·"오후반차" 글자가 있으면 그 구분으로. 시각도 휴가 표시도 없는 줄(주휴·토요일 등)은 건너뜀.
+function parseErp(text, uid) {
+  const std = stdOf(uid), days = docOf(uid).days, rows = []; let noDate = 0;
+  text.split(/\r?\n/).forEach((line) => {
+    const t = line.match(/(?:^|[^0-9:])((?:[01]?\d|2[0-3]):[0-5]\d)(?![0-9])/g) || [];
+    const times = t.map((x) => x.replace(/^[^0-9]/, "")).map((x) => (x.length === 4 ? "0" + x : x));
+    const kw = /오전\s*반차/.test(line) ? "am" : /오후\s*반차/.test(line) ? "pm" : /연차|휴가/.test(line) ? "leave" : null;
+    const dm = line.match(/(20\d\d)[-./](\d{1,2})[-./](\d{1,2})/);
+    if (!dm) { if (times.length) noDate++; return; }
+    if (!times.length && !kw) return;
+    const k = `${dm[1]}-${pad(+dm[2])}-${pad(+dm[3])}`, cur = days[k] || {};
+    let entry;
+    if (kw === "leave" && !times.length) entry = clean({ type: "leave", note: cur.note });
+    else {
+      const type = kw || (["am", "pm", "trip", "holiday", "work"].includes(cur.type) ? cur.type : isOffDay(k) ? "holiday" : "work");
+      const out = times[times.length - 1], inT = times.length > 1 ? times[0] : cur.in || autoIn({ type }, std);
+      entry = type === "holiday" ? clean({ type, in: inT, out, hw: holidayHours(inT, out, std), note: cur.note })
+        : clean({ type, in: inT, out, ot: type === "pm" || cur.noOT ? 0 : suggestOT(out, std), note: cur.note, noOT: cur.noOT });
+    }
+    const same = JSON.stringify(clean({ ...cur })) === JSON.stringify(entry);
+    rows.push({ k, entry, had: !!days[k], same });
+  });
+  const seen = {}; rows.forEach((r) => (seen[r.k] = r)); // 같은 날짜가 여러 번이면 마지막 줄
+  return { rows: Object.values(seen).sort((a, b) => (a.k < b.k ? -1 : 1)), noDate };
+}
+function openImport(uid) {
+  sheet((sh) => {
+    sh.append(el("h3", null, "ERP 출퇴근 기록 붙여넣기"),
+      el("p", "hint", `ERP에서 날짜·출근·퇴근이 있는 줄을 복사해 붙여넣으세요. 날짜별로 ${nameOf(uid)}님의 출근·퇴근이 들어가고 잔업이 자동 계산됩니다.`));
+    const ta = el("textarea", "copybox"); ta.id = "imp-text";
+    ta.placeholder = "2026-11-02\tTrue\t월요일\t출근\t07:40\t20:32\n2026-11-03\tTrue\t화요일\t출근\t07:45\t21:32";
+    sh.append(ta);
+    const info = el("p", "suggest"), wrap = el("div", "tbl-wrap");
+    let parsed = { rows: [], noDate: 0 };
+    const preview = () => {
+      parsed = parseErp(ta.value, uid);
+      wrap.innerHTML = "";
+      const n = parsed.rows.filter((r) => !r.same).length;
+      info.textContent = !ta.value.trim() ? "" : parsed.rows.length
+        ? `${parsed.rows.length}일 읽음 · ${n}일 저장됩니다${parsed.rows.some((r) => r.had && !r.same) ? " (기존 기록은 덮어씀)" : ""}${parsed.noDate ? ` · 날짜 없는 줄 ${parsed.noDate}개 건너뜀` : ""}`
+        : `읽을 수 있는 줄이 없습니다. 날짜(예: 2026-11-02)와 시각이 같은 줄에 있어야 합니다.${parsed.noDate ? ` (날짜 없는 줄 ${parsed.noDate}개)` : ""}`;
+      if (!parsed.rows.length) { save.disabled = true; return; }
+      const t = el("table", "daylist"), head = el("tr");
+      ["날짜", "구분", "출근", "퇴근", "잔업", ""].forEach((h) => head.append(el("th", null, h))); t.append(head);
+      parsed.rows.forEach((r) => {
+        const [y, mo, d] = r.k.split("-").map(Number), e = r.entry, tr = el("tr");
+        [`${mo}/${d} (${DOW[new Date(y, mo - 1, d).getDay()]})`, TYPES[e.type] || "근무", e.in || "—", e.out || "—",
+          e.type === "holiday" ? `특 ${fmtH(e.hw || 0)}h` : e.type === "leave" ? "—" : `${fmtH(e.ot || 0)}h`,
+          r.same ? "같음" : r.had ? "덮어씀" : "새로"].forEach((c, i) => tr.append(el("td", i >= 2 && i <= 4 ? "num" : null, c)));
+        t.append(tr);
+      });
+      wrap.append(t);
+      save.disabled = n === 0;
+    };
+    const act = el("div", "sheet-actions");
+    const save = btn("primary green", "저장", () => {
+      const todo = parsed.rows.filter((r) => !r.same);
+      todo.forEach((r) => saveDay(uid, r.k, r.entry));
+      closeSheet(); toast(`${todo.length}일 기록했습니다`);
+      const f = todo[0]; if (f) { const [y, mo] = f.k.split("-").map(Number); S.month = new Date(y, mo - 1, 1); S.viewUid = uid; render(); }
+    });
+    save.disabled = true;
+    act.append(btn("ghost", "취소", closeSheet), save);
+    sh.append(info, act, wrap); // 저장 버튼을 미리보기 표 위에 두어 스크롤 없이 누를 수 있게
+    ta.addEventListener("input", preview);
+    setTimeout(() => ta.focus(), 50);
   });
 }
 
