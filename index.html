@@ -301,6 +301,9 @@ body{word-break:keep-all}
 .pc.no b{color:var(--muted);font-family:var(--font)}
 /* 잔업불가 버튼은 휴가와 구분되게 주황색 */
 .leave-row button[data-flag][aria-pressed="true"]{background:var(--ot);border-color:var(--ot);color:#fff}
+.leave-row button[data-type="holiday"][aria-pressed="true"]{background:var(--hw);border-color:var(--hw);color:#fff}
+/* 날짜 편집 창의 잔업불가 선택 */
+.chips button.noot[aria-pressed="true"]{background:var(--ot);border-color:var(--ot);color:#fff}
 .pc.me .nm{font-weight:700}
 .pc .nm-short{display:none}
 .day .hn{font-size:9.5px;line-height:1.2}
@@ -425,12 +428,13 @@ header.top{gap:8px}
           <div class="clock" id="clock">--:--</div>
         </div>
       </div>
-      <div class="leave-row" id="leave-row" role="group" aria-label="오늘 휴가">
-        <span>오늘 휴가</span>
+      <div class="leave-row" id="leave-row" role="group" aria-label="오늘 휴가·특근·잔업불가">
+        <span>오늘</span>
         <button data-type="am" aria-pressed="false">오전반차</button>
         <button data-type="pm" aria-pressed="false">오후반차</button>
         <button data-type="leave" aria-pressed="false">연차</button>
         <button data-flag="noOT" aria-pressed="false" title="오늘은 잔업을 할 수 없음: 잔업 0으로 기록, 달력·팀 현황에 표시">잔업불가</button>
+        <button data-type="holiday" aria-pressed="false" title="오늘을 특근으로 기록 (주말·공휴일은 자동)">특근</button>
       </div>
       <div class="btns">
         <button class="pbtn in" id="btn-in">
