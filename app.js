@@ -788,6 +788,12 @@ $("#btn-setup").onclick = async () => {
   catch (e) { toast("등록하지 못했습니다. 이미 관리자가 있거나 규칙이 배포되지 않았습니다."); }
 };
 
+// 휴대폰: 아래 고정된 출근·퇴근 카드 높이를 CSS에 알려 달력이 남는 공간을 딱 맞게 채우도록 함
+if (window.ResizeObserver) new ResizeObserver(() => {
+  const h = $("#punch").offsetHeight;
+  if (h) document.documentElement.style.setProperty("--punch-h", h + "px");
+}).observe($("#punch"));
+
 // 이미 홈 화면 앱으로 실행 중이면 "앱으로 사용법" 버튼 숨김
 if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) $("#app-guide").hidden = true;
 

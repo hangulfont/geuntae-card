@@ -252,8 +252,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface-2)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
 .copybox{width:100%;min-height:160px;font-family:var(--mono);font-size:12.5px}
 #view-me .cal{touch-action:pan-y}
-.app-guide{order:9;align-self:center;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:13px;font-weight:600;text-decoration:none}
-.app-guide svg{width:16px;height:16px}
+.app-guide{text-decoration:none}
 .app-guide:hover{color:var(--fg)}
 @media (display-mode: standalone){.app-guide{display:none}}
 @keyframes slideL{from{transform:translateX(24px);opacity:.3}to{transform:none;opacity:1}}
@@ -318,7 +317,22 @@ header.top{gap:8px}
   .sum{margin-top:6px}
   #punch{padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));gap:6px}
   .pbtn{min-height:52px}
-  .app-guide{padding:6px 12px}
+  /* 달력이 남는 세로 공간을 채워 달력과 출근·퇴근 사이 빈 곳을 없앰 */
+  body{padding-bottom:calc(var(--punch-h,170px) + 8px)}
+  #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 14px - env(safe-area-inset-top,0px))}
+  #view-me:not([hidden]){flex:1}
+  #view-me .cal{flex:1;display:flex;flex-direction:column}
+  #days{flex:1;grid-auto-rows:1fr}
+}
+/* 좁은 휴대폰(아이폰 SE 등): 상단 한 줄 유지 */
+@media (max-width:400px){
+  header.top{flex-wrap:nowrap}
+  .brand{gap:7px}
+  .brand h1{font-size:17px}
+  .top-right{gap:4px;flex:none}
+  .tabs button{padding:5px 10px;font-size:13px}
+  .icon-btn{width:32px;height:32px}
+  .icon-btn svg{width:18px;height:18px}
 }
 </style>
 </head>
@@ -349,6 +363,9 @@ header.top{gap:8px}
   <header class="top">
     <div class="brand"><img src="icon.svg" alt=""><div><h1>근태카드</h1><button id="whoami" class="whoami-btn" type="button" title="이름 바꾸기"></button></div></div>
     <div class="top-right">
+      <a id="app-guide" class="icon-btn app-guide" href="install.html" aria-label="앱으로 사용법" title="앱으로 사용법">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      </a>
       <div class="tabs" role="tablist">
         <button id="tab-me" role="tab" aria-selected="true">내 근태</button>
         <button id="tab-team" role="tab" aria-selected="false">팀 현황<span id="req-badge" class="badge" hidden></span></button>
@@ -404,10 +421,6 @@ header.top{gap:8px}
     </div>
   </section>
 
-  <a id="app-guide" class="app-guide" href="install.html">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
-    앱으로 사용법
-  </a>
 
   <section id="view-team" class="wrap" hidden>
     <div class="card team">
