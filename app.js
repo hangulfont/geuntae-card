@@ -348,7 +348,8 @@ function renderPunch() {
     const hw = e.type === "holiday" || (!e.type && isOffDay(k));
     // 출근은 자동 처리 (버튼 비활성)
     if (hw) setBtn(bi, "done", "특근", `${HOLIDAYS[k] || "주말"} · 퇴근 때 출근시각 입력`);
-    else setBtn(bi, "done", `출근 ${autoIn(e, std)}`, e.type === "am" ? "오전반차 · 자동 처리" : "자동 처리");
+    else if (e.out) setBtn(bi, "done", `출근 ${autoIn(e, std)}`, e.type === "am" ? "오전반차 · 퇴근 때 기록됨" : "퇴근 때 기록됨");
+    else setBtn(bi, "done", "출근", `퇴근을 누르면 ${autoIn(e, std)} 출근으로 기록`);
     if (e.out) setBtn(bo, "done", e.out, hw ? `특근 ${fmtH(e.hw || 0)}시간 · 눌러서 수정` : `잔업 ${fmtH(e.ot || 0)}시간 · 눌러서 수정`);
     else setBtn(bo, "out", "퇴근", hw ? "특근 시간 입력" : e.type === "pm" ? "오후반차 · 퇴근 기록" : "누르면 퇴근·잔업 기록");
   }
@@ -454,22 +455,22 @@ function renderTeam() {
   const list = Object.keys(S.docs).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : nameOf(a).localeCompare(nameOf(b), "ko")));
   if (!list.length) {
     const tr = document.createElement("tr"); const td = document.createElement("td"); td.colSpan = 9; td.className = "empty";
-    td.textContent = "아직 기록한 사람이 없습니다. 멤버를 승인하고 출근을 눌러달라고 하세요."; tr.append(td); tb.append(tr); return;
+    td.textContent = "아직 기록한 사람이 없습니다. 멤버를 승인하고 퇴근을 눌러달라고 하세요."; tr.append(td); tb.append(tr); return;
   }
   list.forEach((uid) => {
     const doc = docOf(uid), e = doc.days[k] || {};
     let otM = 0, hwM = 0, wd = 0;
     Object.entries(doc.days).forEach(([dk, v]) => { if (dk.startsWith(mk_)) { otM += v.ot || 0; hwM += v.hw || 0; if (v.out && v.type !== "leave") wd++; } });
-    // 출근은 자동: 평일은 퇴근 전까지 "근무중", 주말·공휴일은 기록이 있을 때만
+    // 출근은 퇴근을 누를 때 함께 기록됨: 퇴근 전에는 "미기록" (날이 바뀌었다고 근무중으로 보지 않음)
     const off = isOffDay(k);
-    let st = off ? ["none", "휴무"] : ["working", "근무중"];
+    let st = off ? ["none", "휴무"] : ["none", "미기록"];
     if (e.type === "leave") st = ["lv", "연차"];
     else if (e.out) st = ["left", "퇴근"];
     else if (isLeave(e.type)) st = ["lv", TYPES[e.type]];
     else if (e.type === "holiday") st = ["working", "특근중"];
     const tr = document.createElement("tr"); tr.className = "click";
     const todayExtra = e.out ? (e.type === "holiday" ? `특 ${fmtH(e.hw || 0)}h` : fmtH(e.ot || 0) + "h") : "—";
-    const inT = e.type === "leave" ? "—" : (e.in || (off ? "—" : autoIn(e, stdOf(uid))));
+    const inT = e.type === "leave" || !e.out ? "—" : e.in || autoIn(e, stdOf(uid));
     const cells = [nameOf(uid) + (uid === S.myId ? " (나)" : ""), null, inT, e.out || "—", todayExtra, fmtH(otM) + "h", fmtH(hwM) + "h", wd + "일"];
     cells.forEach((c, i) => {
       const td = document.createElement("td");
