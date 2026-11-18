@@ -622,8 +622,13 @@ function openDay(uid, k) {
     act.append(btn("ghost", editable ? "취소" : "닫기", closeSheet));
     if (editable) act.append(btn("primary green", "저장", () => {
       const note = $("#dy-note").value.trim();
-      const out = $("#dy-out").value;
+      let out = $("#dy-out").value;
       let inT = $("#dy-in").value;
+      // 퇴근 시각 없이 잔업만 고른 경우: 퇴근 = 잔업 시작(17:30) + 잔업 시간 (예: 2h → 19:30). 전에는 잔업이 0으로 지워져 달력에 안 나왔음
+      if (!out && touched && type !== "leave" && type !== "holiday" && ot > 0) {
+        const m = toMin(std.otStart || DEFAULT_STD.otStart) + Math.round(ot * 60);
+        out = `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
+      }
       // 퇴근을 못 찍은 날 나중에 퇴근 시각만 넣어도: 출근은 정규 출근 시각(오전반차 13:00), 잔업은 퇴근 시각으로 계산
       if (out && !inT && type !== "holiday") inT = autoIn({ type }, std);
       if (out && !touched && out !== (e.out || "")) {
@@ -631,7 +636,7 @@ function openDay(uid, k) {
         else ot = type === "pm" ? 0 : suggestOT(out, std);
       }
       const entry = type === "leave" ? clean({ type, note })
-        : type === "holiday" ? clean({ type, in: inT, out, hw: out ? hw : 0, note })
+        : type === "holiday" ? clean({ type, in: inT, out, hw: out || touched ? hw : 0, note })
         : clean({ type, in: inT, out, ot: out ? ot : 0, note });
       saveDay(uid, k, entry); closeSheet(); toast("저장했습니다");
     }));
