@@ -276,6 +276,8 @@ html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:10
 .field input,.field select,.field textarea{font-size:16px}
 /* 아이폰 시간 입력칸이 기본 최소 폭 때문에 두 칸짜리 줄에서 화면 밖으로 넘치던 문제 */
 .two>*{min-width:0}
+/* 잔업·특근 시간 선택: 버튼과 −/+ 가운데 정렬 */
+.otpick .chips,.otpick .stepper{justify-content:center}
 .field input[type="time"]{min-width:0;-webkit-appearance:none;appearance:none;min-height:42px;text-align:left}
 /* 홈 화면 앱: iOS 26은 상태바(시계·배터리) 아래 약 35px까지 점점 흐려지는 효과를 넣으므로 그 아래에서 시작 */
 html.standalone{padding-top:calc(env(safe-area-inset-top,0px) + 34px)}
