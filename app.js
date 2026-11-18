@@ -120,6 +120,7 @@ async function firebaseBoot() {
         const out = {};
         snap.docs.forEach((d) => { out[d.id] = d.data(); });
         S.stale = snap.metadata.fromCache && !navigator.onLine;
+        S.cacheOnly = snap.metadata.fromCache;
         cb(out);
       }, (err) => { console.error(err); S.stale = true; toast("기록을 불러오지 못했습니다. 권한 또는 네트워크를 확인하세요."); render(); });
     },
@@ -150,8 +151,9 @@ async function firebaseBoot() {
       S.isAdmin = S.access.admins.includes(S.myEmail);
       const member = S.isAdmin || S.access.members.includes(S.myEmail);
       if (!member) {
-        F.setDoc(F.doc(db, "requests", u.uid), { email: u.email, name: u.displayName || "", at: F.serverTimestamp() }).catch(() => {});
-        showGate("pending");
+        // 승인 요청: 본인이 이름을 입력해서 보냄 (이미 보냈으면 보낸 이름을 보여줌)
+        F.getDoc(F.doc(db, "requests", u.uid)).then((r) => { S.myRequest = r.exists() ? r.data() : null; showGate("pending"); })
+          .catch(() => { S.myRequest = null; showGate("pending"); });
         return;
       }
       startApp();
@@ -168,7 +170,12 @@ function startApp() {
   if (S.mode === "firebase") {
     const u = S._user, { F, db } = FBX;
     store.saveProfile(u.uid, { name: u.displayName || "", email: u.email || "" }).catch(() => {});
-    unsubs.push(store.subscribe((docs) => { S.docs = normalize(docs); render(); }));
+    let asked = false;
+    unsubs.push(store.subscribe((docs) => {
+      S.docs = normalize(docs); render();
+      // 표시 이름을 아직 정하지 않았으면 한 번 입력받음 (Google 닉네임 대신)
+      if (!asked && !S.cacheOnly && S.docs[S.myId] && !S.docs[S.myId].nick) { asked = true; openName(true); }
+    }));
     if (S.isAdmin) {
       unsubs.push(F.onSnapshot(F.collection(db, "requests"), (snap) => {
         S.requests = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
@@ -238,8 +245,8 @@ function showGate(kind, code) {
   if (!kind) { gate.hidden = true; app.hidden = false; return; }
   gate.hidden = false; app.hidden = true;
   const title = $("#gate-title"), msg = $("#gate-msg"), mail = $("#gate-mail"), foot = $("#gate-foot");
-  const g = $("#btn-google"), setup = $("#btn-setup"), lo = $("#btn-gate-logout"), ia = $("#inapp");
-  [g, setup, lo, mail, ia].forEach((x) => (x.hidden = true));
+  const g = $("#btn-google"), setup = $("#btn-setup"), lo = $("#btn-gate-logout"), ia = $("#inapp"), nf = $("#gate-name");
+  [g, setup, lo, mail, ia, nf].forEach((x) => (x.hidden = true));
   foot.textContent = "";
   mail.textContent = S.myEmail;
   if (kind === "loading") { title.textContent = "근태카드"; msg.textContent = "불러오는 중…"; return; }
@@ -263,9 +270,18 @@ function showGate(kind, code) {
     return;
   }
   if (kind === "pending") {
-    title.textContent = "승인 대기 중";
-    msg.textContent = "관리자가 이 계정을 승인하면 바로 사용할 수 있습니다. 관리자에게 아래 이메일을 알려주세요.";
-    mail.hidden = false; lo.hidden = false;
+    const req = S.myRequest;
+    mail.hidden = false; lo.hidden = false; nf.hidden = false;
+    if (req) {
+      title.textContent = "승인 대기 중";
+      msg.textContent = `'${req.name}' 이름으로 승인 요청을 보냈습니다. 관리자가 승인하면 바로 사용할 수 있습니다.`;
+      $("#gate-name-input").value = req.name || "";
+      $("#btn-request").textContent = "이름 고쳐서 다시 보내기";
+    } else {
+      title.textContent = "이름 입력";
+      msg.textContent = "달력과 팀 현황에 표시될 본인 이름을 입력하고 승인 요청을 보내세요.";
+      $("#btn-request").textContent = "승인 요청 보내기";
+    }
     return;
   }
   if (kind === "setup") {
@@ -295,7 +311,8 @@ function renderHeader() {
     const r = document.createElement("button"); r.className = "linkbtn"; r.textContent = "예시 초기화"; r.onclick = () => store.reset(); b.append(r);
   } else if (S.stale) { b.hidden = false; b.textContent = "오프라인 상태입니다. 기록은 저장해 두었다가 연결되면 자동으로 올라갑니다."; }
   else b.hidden = true;
-  $("#whoami").textContent = `${nameOf(S.myId)} · ${docOf(S.myId).site || "고객사 미지정"}`;
+  const who = $("#whoami"); who.innerHTML = "";
+  who.append(el("b", null, nameOf(S.myId)), ` ✎ · ${docOf(S.myId).site || "고객사 미지정"}`);
   const badge = $("#req-badge");
   badge.hidden = !(S.isAdmin && S.requests.length); badge.textContent = S.requests.length;
 }
@@ -443,14 +460,37 @@ function renderTeam() {
 
 // ---------------- sheets ----------------
 function closeSheet() { $("#sheet-root").innerHTML = ""; }
-function sheet(build) {
+let sheetLocked = false;
+function sheet(build, locked = false) {
   const root = $("#sheet-root"); root.innerHTML = "";
+  sheetLocked = locked;
   const scrim = document.createElement("div"); scrim.className = "scrim";
   const sh = document.createElement("div"); sh.className = "sheet"; sh.setAttribute("role", "dialog"); sh.setAttribute("aria-modal", "true");
-  scrim.onclick = (ev) => { if (ev.target === scrim) closeSheet(); };
+  scrim.onclick = (ev) => { if (ev.target === scrim && !sheetLocked) closeSheet(); };
   scrim.append(sh); root.append(scrim); build(sh);
 }
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !sheetLocked) closeSheet(); });
+
+// 표시 이름 입력 (required = 처음 한 번 꼭 입력)
+function openName(required) {
+  const doc = docOf(S.myId);
+  sheet((sh) => {
+    sh.append(el("h3", null, required ? "표시할 이름을 입력하세요" : "이름 바꾸기"),
+      el("p", "hint", "달력과 팀 현황에서 다른 사람에게 이 이름으로 보입니다."));
+    const f = field("nm-input", "이름", "text", doc.nick || "", { placeholder: "예: 김상주", maxlength: "20", autocomplete: "name" });
+    sh.append(f);
+    const act = el("div", "sheet-actions");
+    if (!required) act.append(btn("ghost", "취소", closeSheet));
+    act.append(btn("primary green", "저장", () => {
+      const v = $("#nm-input").value.trim();
+      if (!v) { toast("이름을 입력하세요"); $("#nm-input").focus(); return; }
+      saveProfile(S.myId, { nick: v }); sheetLocked = false; closeSheet(); toast(`'${v}'(으)로 표시됩니다`);
+    }));
+    sh.append(act);
+    setTimeout(() => { const i = $("#nm-input"); if (i) i.focus(); }, 50);
+    $("#nm-input").addEventListener("keydown", (e) => { if (e.key === "Enter") act.lastChild.click(); });
+  }, required);
+}
 function el(tag, cls, text) { const x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
 function btn(cls, text, onclick) { const b = el("button", cls, text); b.type = "button"; b.onclick = onclick; return b; }
 function field(id, label, type, value, attrs = {}) {
@@ -579,13 +619,15 @@ function openSettings() {
   sheet((sh) => {
     sh.append(el("h3", null, "내 설정"), el("p", "hint", "잔업은 잔업 시작 시각부터 퇴근까지 30분 단위로 계산합니다. 점심 12:00~13:00 고정."));
     sh.append(field("st-site", "상주 고객사", "text", doc.site, { placeholder: "예: 한빛전자 평택공장" }));
-    sh.append(field("st-nick", "달력에 보일 이름 (비우면 Google 계정 이름)", "text", doc.nick, { placeholder: doc.name || "예: 김상주" }));
+    sh.append(field("st-nick", "표시 이름 (달력·팀 현황에 보이는 이름)", "text", doc.nick, { placeholder: "예: 김상주", maxlength: "20" }));
     const two = el("div", "two"); two.append(field("st-start", "정규 출근", "time", std.start), field("st-end", "정규 퇴근", "time", std.end)); sh.append(two);
     sh.append(field("st-ot", "잔업 시작", "time", std.otStart));
     const act = el("div", "sheet-actions");
     if (S.mode === "firebase") act.append(btn("danger", "로그아웃", () => { closeSheet(); FBX.A.signOut(FBX.auth); }));
     act.append(btn("ghost", "취소", closeSheet), btn("primary green", "저장", () => {
-      saveProfile(uid, { site: $("#st-site").value.trim(), nick: $("#st-nick").value.trim(), std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
+      const nick = $("#st-nick").value.trim();
+      if (!nick) { toast("표시 이름을 입력하세요"); $("#st-nick").focus(); return; }
+      saveProfile(uid, { site: $("#st-site").value.trim(), nick, std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
       closeSheet(); toast("설정을 저장했습니다");
     }));
     sh.append(act);
@@ -604,6 +646,8 @@ function openMembers() {
         const it = el("div", "it"); it.append(el("span", null, `${r.name || ""} ${r.email}`));
         it.append(btn(null, "승인", async () => {
           await F.updateDoc(accRef, { members: F.arrayUnion(String(r.email).toLowerCase()) });
+          // 요청할 때 입력한 이름을 표시 이름으로 미리 넣어 둠
+          if (r.name) await F.setDoc(F.doc(db, "att", r.uid), { nick: r.name, email: r.email }, { merge: true }).catch(() => {});
           await F.deleteDoc(F.doc(db, "requests", r.uid)); toast(`${r.email} 승인했습니다`); openMembers();
         }));
         l.append(it);
@@ -612,9 +656,10 @@ function openMembers() {
     }
     sh.append(el("div", "flabel", "멤버"));
     const l = el("div", "list");
-    S.access.admins.forEach((m) => { const it = el("div", "it"); it.append(el("span", null, m), el("span", "small", "관리자")); l.append(it); });
+    const label = (m) => { const uid = Object.keys(S.docs).find((x) => (S.docs[x].email || "").toLowerCase() === m); return uid && S.docs[uid].nick ? `${S.docs[uid].nick} · ${m}` : m; };
+    S.access.admins.forEach((m) => { const it = el("div", "it"); it.append(el("span", null, label(m)), el("span", "small", "관리자")); l.append(it); });
     S.access.members.filter((m) => !S.access.admins.includes(m)).forEach((m) => {
-      const it = el("div", "it"); it.append(el("span", null, m));
+      const it = el("div", "it"); it.append(el("span", null, label(m)));
       let armed = false;
       const rm = btn(null, "제외", async () => { if (!armed) { armed = true; rm.textContent = "한 번 더"; return; } await F.updateDoc(accRef, { members: F.arrayRemove(m) }); toast("제외했습니다"); openMembers(); });
       it.append(rm); l.append(it);
@@ -723,6 +768,18 @@ $("#btn-google").onclick = async () => {
   }
 };
 $("#btn-gate-logout").onclick = () => FBX && FBX.A.signOut(FBX.auth);
+$("#whoami").onclick = () => openName(false);
+$("#gate-name").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const name = $("#gate-name-input").value.trim();
+  if (!name) { toast("이름을 입력하세요"); return; }
+  if (!FBX) { toast("데모 모드에서는 요청을 보내지 않습니다"); return; }
+  const { F, db } = FBX, u = S._user;
+  try {
+    await F.setDoc(F.doc(db, "requests", u.uid), { email: u.email, name, at: F.serverTimestamp() });
+    S.myRequest = { email: u.email, name }; showGate("pending"); toast("승인 요청을 보냈습니다");
+  } catch (e) { toast("요청을 보내지 못했습니다. 잠시 후 다시 시도하세요."); }
+});
 $("#btn-setup").onclick = async () => {
   const { F, db } = FBX;
   try { await F.setDoc(F.doc(db, "config", "access"), { admins: [S.myEmail], members: [] }); toast("관리자로 등록했습니다"); }
