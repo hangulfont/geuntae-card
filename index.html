@@ -273,8 +273,8 @@ html,body{overscroll-behavior-y:contain}
 /* 확대·축소 막기: 두 번 탭 확대 끔, 입력칸은 16px 이상이어야 아이폰이 눌렀을 때 확대하지 않음 */
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .field input,.field select,.field textarea{font-size:16px}
-/* 홈 화면 앱: 상태바(시계·배터리) 아래 흐림 영역에 제목이 가리지 않도록 위 여백을 조금 더 둠 */
-html.standalone{padding-top:calc(env(safe-area-inset-top,0px) + 10px)}
+/* 홈 화면 앱: iOS 26은 상태바(시계·배터리) 아래 약 35px까지 점점 흐려지는 효과를 넣으므로 그 아래에서 시작 */
+html.standalone{padding-top:calc(env(safe-area-inset-top,0px) + 34px)}
 /* 휴대폰을 가로로 돌리면 세로로 돌려달라는 안내 (아이폰은 가로 고정을 웹앱에 허용하지 않음) */
 #rotate{display:none}
 @media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
@@ -334,7 +334,7 @@ header.top{gap:8px}
   html{padding-bottom:0}
   body{padding-bottom:calc(var(--punch-h,170px) + 8px)}
   #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 16px - env(safe-area-inset-top,0px))}
-  html.standalone #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 26px - env(safe-area-inset-top,0px))}
+  html.standalone #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 50px - env(safe-area-inset-top,0px))}
   #view-me:not([hidden]){flex:1}
   #view-me .cal{flex:1;display:flex;flex-direction:column}
   #days{flex:1;grid-auto-rows:1fr}
