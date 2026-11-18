@@ -791,6 +791,38 @@ $("#btn-setup").onclick = async () => {
 // 이미 홈 화면 앱으로 실행 중이면 "앱으로 사용법" 버튼 숨김
 if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) $("#app-guide").hidden = true;
 
+// 새 버전 바로 반영: github.io는 파일을 휴대폰에 10분간 저장해 두므로,
+// 저장본을 건너뛰고 서버에서 새로 받아 둔 뒤 새로고침한다.
+const APP_FILES = ["./", "index.html", "app.js", "firebase-config.js"];
+async function freshReload() {
+  try { await Promise.all(APP_FILES.map((u) => fetch(u, { cache: "reload" }))); } catch (_) {}
+  location.reload();
+}
+// 배포가 끝나면 열려 있는 앱도 알아서 새 버전으로 바뀜 (1분마다, 그리고 앱으로 돌아올 때 확인)
+(() => {
+  if (location.protocol !== "https:" && location.hostname !== "localhost") return;
+  const sig = async () => {
+    const r = await fetch("./", { cache: "no-store" });
+    const r2 = await fetch("app.js", { cache: "no-store" });
+    if (!r.ok || !r2.ok) throw new Error("check failed");
+    return (await r.text()).length + ":" + (await r2.text());
+  };
+  let base = null, busy = false;
+  sig().then((s) => (base = s)).catch(() => {});
+  const check = async () => {
+    if (busy || document.hidden) return;
+    busy = true;
+    try {
+      const s = await sig();
+      if (base === null) base = s;
+      else if (s !== base && !document.querySelector(".scrim")) { toast("새 버전으로 바꿉니다"); freshReload(); }
+    } catch (_) {}
+    busy = false;
+  };
+  setInterval(check, 60000);
+  document.addEventListener("visibilitychange", check);
+})();
+
 // 당겨서 새로고침: 화면 맨 위에서 아래로 반쯤 당겼다 놓으면 새로고침 (홈 화면 앱에서도 동작)
 (() => {
   const ind = document.createElement("div");
@@ -820,7 +852,7 @@ if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) $(
   const end = () => {
     if (y0 === null) return;
     y0 = null; ind.style.transition = "";
-    if (d >= NEED) { ind.classList.add("spin"); set(NEED); setTimeout(() => location.reload(), 150); }
+    if (d >= NEED) { ind.classList.add("spin"); set(NEED); freshReload(); }
     else set(0);
   };
   addEventListener("touchend", end, { passive: true });
