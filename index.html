@@ -274,6 +274,9 @@ html,body{overscroll-behavior:none}
 /* 확대·축소 막기: 두 번 탭 확대 끔, 입력칸은 16px 이상이어야 아이폰이 눌렀을 때 확대하지 않음 */
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .field input,.field select,.field textarea{font-size:16px}
+/* 아이폰 시간 입력칸이 기본 최소 폭 때문에 두 칸짜리 줄에서 화면 밖으로 넘치던 문제 */
+.two>*{min-width:0}
+.field input[type="time"]{min-width:0;-webkit-appearance:none;appearance:none;min-height:42px;text-align:left}
 /* 홈 화면 앱: iOS 26은 상태바(시계·배터리) 아래 약 35px까지 점점 흐려지는 효과를 넣으므로 그 아래에서 시작 */
 html.standalone{padding-top:calc(env(safe-area-inset-top,0px) + 34px)}
 /* 휴대폰을 가로로 돌리면 세로로 돌려달라는 안내 (아이폰은 가로 고정을 웹앱에 허용하지 않음) */

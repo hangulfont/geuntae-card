@@ -27,7 +27,7 @@ const TYPES = { work: "근무", am: "오전반차", pm: "오후반차", leave: "
 const LEAVE_DAYS = { leave: 1, am: 0.5, pm: 0.5 };
 const isLeave = (t) => t in LEAVE_DAYS;
 const LEAVE_PARTS = { leave: [["연차", 0]], am: [["오전", 0], ["반차", 1]], pm: [["오후", 0], ["반차", 1]] };
-const OT_CHIPS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 4];
+const OT_CHIPS = [1, 2, 3, 4]; // 잔업은 보통 1시간 단위. 0·30분 단위는 아래 −/+ 로 조절, 퇴근 시각으로 자동 계산도 됨
 const HW_CHIPS = [2, 4, 6, 8, 9, 10];
 // 근무조건: 08:00~17:00 (점심 12:00~13:00, 8시간), 잔업은 17:30부터 30분 단위
 const DEFAULT_STD = { start: "08:00", end: "17:00", otStart: "17:30" };
