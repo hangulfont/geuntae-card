@@ -475,7 +475,7 @@ function renderCalendar() {
   people.forEach((pu) => { const s = el("span", "lg-p", nameOf(pu)); s.style.setProperty("--pc", `var(--p${colors[pu]})`); lg.append(s); });
   lg.append(el("span", "lg-k", "숫자=잔업 · 특=특근"));
   const sum = $("#sum"); sum.innerHTML = "";
-  [["근무", workDays + "일", ""], ["잔업", fmtH(otSum) + "h", "o"], ["특근", fmtH(hwSum) + "h", "h"], ["연차", fmtH(leaveDays) + "일", ""]]
+  [["근무", workDays + "일", ""], ["잔특", fmtH(otSum + hwSum) + "h", "t"], ["잔업", fmtH(otSum) + "h", "o"], ["특근", fmtH(hwSum) + "h", "h"], ["연차", fmtH(leaveDays) + "일", ""]]
     .forEach(([l, v, c]) => {
       const d = document.createElement("div"); d.className = c;
       const s = document.createElement("small"); s.textContent = l; const st = document.createElement("strong"); st.textContent = v;
