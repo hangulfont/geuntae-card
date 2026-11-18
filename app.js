@@ -336,6 +336,19 @@ function renderPunch() {
   if (!mine) return;
 
   $("#today-label").textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 (${DOW[now.getDay()]})${HOLIDAYS[k] ? " · " + HOLIDAYS[k] : ""}`;
+  // 이번 달 지금까지: 잔업 시간 합계, 특근(주말·공휴일에 출근해 퇴근 찍은) 일수
+  {
+    const mPre = k.slice(0, 8); let otM = 0, hwDays = 0;
+    Object.entries(docOf(uid).days).forEach(([dk, v]) => {
+      if (!dk.startsWith(mPre) || dk > k || !v) return;
+      otM += v.ot || 0;
+      if (v.type === "holiday" && (v.out || v.hw > 0)) hwDays++;
+    });
+    const ms = $("#month-stat"); ms.innerHTML = "";
+    const chip = (cls, label, val) => { const s = el("span", cls, label); s.append(el("b", null, val)); ms.append(s); };
+    chip("o", `${now.getMonth() + 1}월 잔업`, `${fmtH(otM)}h`);
+    chip("h", "특근", `${hwDays}일`);
+  }
   const e = docOf(uid).days[k] || {};
   const std = stdOf(uid);
   const fullLeave = e.type === "leave";
