@@ -188,6 +188,7 @@ function startApp() {
     let asked = false;
     unsubs.push(store.subscribe((docs) => {
       S.docs = normalize(docs); render();
+      if (!S.cacheOnly) repairMisreadOut();
       // 표시 이름이 아직 없으면: 승인 요청 때 입력한 이름이 있으면 그걸 쓰고(다시 묻지 않음), 없을 때만 한 번 입력받음
       // (관리자가 '승인' 버튼 대신 이메일로 직접 추가한 경우에도 이름을 두 번 입력하지 않게)
       if (!asked && !S.cacheOnly && S.docs[S.myId] && !S.docs[S.myId].nick) {
@@ -207,8 +208,27 @@ function startApp() {
       }, () => {}));
     }
   } else {
-    store.subscribe((docs) => { S.docs = normalize(docs); render(); });
+    store.subscribe((docs) => { S.docs = normalize(docs); render(); repairMisreadOut(); });
   }
+}
+// ERP 붙여넣기에서 출근 시각만 있는 줄을 퇴근으로 잘못 저장한 기록 바로잡기
+// (평일 근무인데 퇴근이 06:00~12:00이고 출근보다 이르면 실제 퇴근일 수 없음 → 그 시각을 출근으로, 퇴근·잔업은 비움)
+// 본인 기록(관리자는 모두)만, 한 번 고친 날은 다시 보지 않음
+const repaired = new Set();
+function repairMisreadOut() {
+  Object.keys(S.docs).forEach((uid) => {
+    if (!canWrite(uid)) return;
+    Object.entries(S.docs[uid].days).forEach(([k, e]) => {
+      const key = uid + k;
+      if (repaired.has(key) || !e || !e.out || !e.in) return;
+      if (e.type && e.type !== "work" && e.type !== "trip") return;
+      const o = toMin(e.out), i = toMin(e.in);
+      if (o == null || i == null || o < 6 * 60 || o >= 12 * 60 || o >= i) return;
+      repaired.add(key);
+      const fixed = clean({ ...e, in: e.out, out: null, ot: null });
+      saveDay(uid, k, fixed);
+    });
+  });
 }
 function normalize(docs) {
   const out = {};
@@ -748,6 +768,8 @@ function parseErp(text, uid) {
     const dm = line.match(/(20\d\d)[-./](\d{1,2})[-./](\d{1,2})/);
     if (!dm) { if (times.length) noDate++; return; }
     if (!times.length && !kw) return;
+    // 시각이 하나뿐이고 정오 전이면 출근만 찍힌 날(예: 오늘 아침) → 퇴근이 아니므로 기록하지 않음
+    if (times.length === 1 && !kw && toMin(times[0]) < 12 * 60) return;
     const k = `${dm[1]}-${pad(+dm[2])}-${pad(+dm[3])}`, cur = days[k] || {};
     let entry;
     if (kw === "leave" && !times.length) entry = clean({ type: "leave", note: cur.note });
