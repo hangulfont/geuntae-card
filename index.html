@@ -314,6 +314,18 @@ html.standalone{padding-top:calc(env(safe-area-inset-top,0px) + 4px)}
     flex-direction:column;align-items:center;justify-content:center;gap:12px;font-size:16px;font-weight:600;text-align:center}
   #rotate svg{width:44px;height:44px;color:var(--in)}
 }
+/* PC: 출근·퇴근 카드를 작게(날짜·시계 한 줄, 가로형 버튼) + 화면 아래에 붙여 항상 보이게 */
+@media (min-width:601px){
+  .punch-head{align-items:center}
+  .punch-head > div:first-child{display:flex;align-items:baseline;gap:10px}
+  .clock{font-size:30px}
+  .pbtn{min-height:64px;flex-direction:row;gap:12px;padding:10px 16px}
+  .pbtn svg{width:26px;height:26px;flex:none}
+  .pbtn .txt{align-items:flex-start;min-width:0}
+  .pbtn .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .stamp-row{display:none}
+  #punch{position:sticky;bottom:8px;z-index:5;box-shadow:0 -4px 18px rgb(0 0 0 / .18)}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 /* ---- 사람별 이름·잔업 칩 (달력 한눈에 보기) ---- */
 body{word-break:keep-all}
