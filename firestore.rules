@@ -27,7 +27,13 @@ service cloud.firestore {
     match /att/{uid} {
       allow read: if isMember();
       // 본인 기록은 본인이 쓰되, 표시 이름(nick)은 처음 정할 때만. 이후 이름 변경은 관리자만.
-      allow write: if isAdmin() || (isMember() && request.auth.uid == uid && nickUnlocked());
+      // 근무 형태(salary)도 관리자만 바꿀 수 있음
+      allow write: if isAdmin() || (isMember() && request.auth.uid == uid && nickUnlocked() && salaryUnchanged());
+    }
+    function salaryUnchanged() {
+      return request.resource != null && (
+        (resource == null && request.resource.data.get('salary', false) == false)
+        || (resource != null && request.resource.data.get('salary', false) == resource.data.get('salary', false)));
     }
     function nickUnlocked() {
       return resource == null || !('nick' in resource.data) || resource.data.nick == ''
