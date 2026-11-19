@@ -26,7 +26,12 @@ service cloud.firestore {
 
     match /att/{uid} {
       allow read: if isMember();
-      allow write: if (isMember() && request.auth.uid == uid) || isAdmin();
+      // 본인 기록은 본인이 쓰되, 표시 이름(nick)은 처음 정할 때만. 이후 이름 변경은 관리자만.
+      allow write: if isAdmin() || (isMember() && request.auth.uid == uid && nickUnlocked());
+    }
+    function nickUnlocked() {
+      return resource == null || !('nick' in resource.data) || resource.data.nick == ''
+        || (request.resource != null && request.resource.data.get('nick', '') == resource.data.nick);
     }
   }
 }

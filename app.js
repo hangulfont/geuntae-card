@@ -336,7 +336,7 @@ function renderHeader() {
   } else if (S.stale) { b.hidden = false; b.textContent = "오프라인 상태입니다. 기록은 저장해 두었다가 연결되면 자동으로 올라갑니다."; }
   else b.hidden = true;
   const who = $("#whoami"); who.innerHTML = "";
-  who.append(el("b", null, nameOf(S.myId)), " ✎");
+  who.append(el("b", null, nameOf(S.myId)), S.isAdmin ? " ✎" : ""); // 이름은 관리자만 변경
   const badge = $("#req-badge");
   badge.hidden = !(S.isAdmin && S.requests.length); badge.textContent = S.requests.length;
 }
@@ -542,10 +542,11 @@ function sheet(build, locked = false) {
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !sheetLocked) closeSheet(); });
 
 // 표시 이름 입력 (required = 처음 한 번 꼭 입력)
-function openName(required) {
-  const doc = docOf(S.myId);
+// 이름 입력/변경: 처음 한 번(required)은 본인이, 이후 변경은 관리자만 (uid로 다른 사람도)
+function openName(required, uid = S.myId) {
+  const doc = docOf(uid);
   sheet((sh) => {
-    sh.append(el("h3", null, required ? "표시할 이름을 입력하세요" : "이름 바꾸기"),
+    sh.append(el("h3", null, required ? "표시할 이름을 입력하세요" : uid === S.myId ? "이름 바꾸기" : `이름 바꾸기 · ${doc.email || nameOf(uid)}`),
       el("p", "hint", "달력과 팀 현황에서 다른 사람에게 이 이름으로 보입니다."));
     const f = field("nm-input", "이름", "text", doc.nick || "", { placeholder: "예: 김상주", maxlength: "20", autocomplete: "name" });
     sh.append(f);
@@ -554,7 +555,8 @@ function openName(required) {
     act.append(btn("primary green", "저장", () => {
       const v = $("#nm-input").value.trim();
       if (!v) { toast("이름을 입력하세요"); $("#nm-input").focus(); return; }
-      saveProfile(S.myId, { nick: v }); sheetLocked = false; closeSheet(); toast(`'${v}'(으)로 표시됩니다`);
+      saveProfile(uid, { nick: v }); sheetLocked = false; closeSheet(); toast(`'${v}'(으)로 표시됩니다`);
+      if (uid !== S.myId && $("#sheet-root").childElementCount === 0 && S.isAdmin) setTimeout(openMembers, 50);
     }));
     sh.append(act);
     setTimeout(() => { const i = $("#nm-input"); if (i) i.focus(); }, 50);
@@ -718,7 +720,7 @@ function openSettings() {
   const uid = S.myId, doc = docOf(uid), std = stdOf(uid);
   sheet((sh) => {
     sh.append(el("h3", null, "내 설정"), el("p", "hint", "잔업은 잔업 시작 시각부터 퇴근까지 30분 단위로 계산합니다. 점심 12:00~13:00 고정."));
-    sh.append(field("st-nick", "표시 이름 (달력·팀 현황에 보이는 이름)", "text", doc.nick, { placeholder: "예: 김상주", maxlength: "20" }));
+    sh.append(field("st-nick", S.isAdmin ? "표시 이름 (달력·팀 현황에 보이는 이름)" : "표시 이름 (변경은 관리자에게 요청)", "text", doc.nick, { placeholder: "예: 김상주", maxlength: "20", disabled: !S.isAdmin }));
     const two = el("div", "two"); two.append(field("st-start", "정규 출근", "time", std.start), field("st-end", "정규 퇴근", "time", std.end)); sh.append(two);
     sh.append(field("st-ot", "잔업 시작", "time", std.otStart));
     const imp = btn("ghost", "ERP 출퇴근 기록 붙여넣기", () => openImport(uid)); imp.style.alignSelf = "flex-start"; sh.append(imp);
@@ -726,8 +728,8 @@ function openSettings() {
     if (S.mode === "firebase") act.append(btn("danger", "로그아웃", () => { closeSheet(); FBX.A.signOut(FBX.auth); }));
     act.append(btn("ghost", "취소", closeSheet), btn("primary green", "저장", () => {
       const nick = $("#st-nick").value.trim();
-      if (!nick) { toast("표시 이름을 입력하세요"); $("#st-nick").focus(); return; }
-      saveProfile(uid, { nick, std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
+      if (S.isAdmin && !nick) { toast("표시 이름을 입력하세요"); $("#st-nick").focus(); return; }
+      saveProfile(uid, { ...(S.isAdmin ? { nick } : {}), std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
       closeSheet(); toast("설정을 저장했습니다");
     }));
     sh.append(act);
@@ -838,12 +840,16 @@ function openMembers() {
     sh.append(el("div", "flabel", "멤버"));
     const l = el("div", "list");
     const label = (m) => { const uid = Object.keys(S.docs).find((x) => (S.docs[x].email || "").toLowerCase() === m); return uid && S.docs[uid].nick ? `${S.docs[uid].nick} · ${m}` : m; };
-    S.access.admins.forEach((m) => { const it = el("div", "it"); it.append(el("span", null, label(m)), el("span", "small", "관리자")); l.append(it); });
+    const uidOf = (m) => Object.keys(S.docs).find((x) => (S.docs[x].email || "").toLowerCase() === m);
+    // 이름 변경은 관리자만: 기록이 있는(한 번이라도 로그인한) 사람은 '이름' 버튼으로 바꿈
+    const nameBtn = (m) => { const u = uidOf(m); if (!u) return null; return btn(null, "이름", () => openName(false, u)); };
+    S.access.admins.forEach((m) => { const it = el("div", "it"); it.append(el("span", null, label(m))); const a = el("div", "it-acts"); const nb = nameBtn(m); if (nb) a.append(nb); a.append(el("span", "small", "관리자")); it.append(a); l.append(it); });
     S.access.members.filter((m) => !S.access.admins.includes(m)).forEach((m) => {
       const it = el("div", "it"); it.append(el("span", null, label(m)));
+      const acts = el("div", "it-acts"); const nb = nameBtn(m); if (nb) acts.append(nb);
       let armed = false;
       const rm = btn(null, "제외", async () => { if (!armed) { armed = true; rm.textContent = "한 번 더"; return; } await F.updateDoc(accRef, { members: F.arrayRemove(m) }); toast("제외했습니다"); openMembers(); });
-      it.append(rm); l.append(it);
+      acts.append(rm); it.append(acts); l.append(it);
     });
     sh.append(l);
     const addF = field("mb-add", "이메일로 미리 추가", "email", "", { placeholder: "name@gmail.com" }); sh.append(addF);
@@ -946,7 +952,7 @@ $("#btn-google").onclick = async () => {
   }
 };
 $("#btn-gate-logout").onclick = () => FBX && FBX.A.signOut(FBX.auth);
-$("#whoami").onclick = () => openName(false);
+$("#whoami").onclick = () => (S.isAdmin ? openName(false) : toast("이름은 관리자만 바꿀 수 있습니다"));
 $("#gate-name").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const name = $("#gate-name-input").value.trim();
