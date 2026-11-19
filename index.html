@@ -517,11 +517,6 @@ header.top{gap:8px}
 }
 /* 좁은 PC(601~1199px, 카드가 달력 아래): 칸이 좁아 달력 글자를 11.5px로 */
 @media (min-width:601px) and (max-width:1199px){ :root{--pcb:11.5px} }
-/* 다른 사람 표시는 무채색: 이름 칸은 옅은 회색에 일반 글자색 */
-:root{--pn:#8a959b}
-@media (prefers-color-scheme: dark){:root{--pn:#6b7780}}
-.pc.other .nm,.today-off .to.other .nm{color:var(--fg);background:color-mix(in srgb,var(--pn) 38%,transparent)}
-.pc.other,.today-off .to.other{background:color-mix(in srgb,var(--pn) 12%,transparent)}
 </style>
 </head>
 <body>
