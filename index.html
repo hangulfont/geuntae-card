@@ -471,6 +471,10 @@ header.top{gap:8px}
   html.fitcal .pc.no .nm{font-size:calc(8.5px * var(--pcz,1))}
   html.fitcal .pc.no b{font-size:calc(7.5px * var(--pcz,1))}
 }
+/* 상단: 이름을 '근태카드' 옆 한 줄로 */
+.brand > div{flex-direction:row;align-items:baseline;gap:8px}
+.brand .whoami-btn{font-size:14px}
+@media (max-width:600px){ .brand > div{gap:6px} .brand .whoami-btn{font-size:13px} }
 </style>
 </head>
 <body>
