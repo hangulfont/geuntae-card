@@ -233,7 +233,7 @@ function repairMisreadOut() {
 function normalize(docs) {
   const out = {};
   Object.entries(docs).forEach(([uid, v]) => {
-    out[uid] = { name: v.name || "", nick: v.nick || "", site: v.site || "", email: v.email || "", std: v.std || { ...DEFAULT_STD },
+    out[uid] = { name: v.name || "", nick: v.nick || "", site: v.site || "", email: v.email || "", std: v.std || { ...DEFAULT_STD }, salary: !!v.salary,
       days: Object.fromEntries(Object.entries(v.days || {}).filter(([, x]) => x)) };
   });
   return out;
@@ -410,6 +410,20 @@ function renderPunch() {
     else setBtn(bo, "out", "퇴근", hw ? "특근 시간 입력" : e.type === "pm" ? "오후반차 · 퇴근 기록" : "누르면 퇴근·잔업 기록");
   }
   bi.disabled = true;
+  // 연봉직: 출근 버튼 대신 이번 달 주차별 40h·52h 초과 시간과 월 40h 초과 합계
+  const wb = $("#weekbox"), salaried = !!docOf(uid).salary;
+  bi.hidden = salaried; wb.hidden = !salaried;
+  if (salaried) {
+    wb.innerHTML = "";
+    const weeks = weekStats(uid, now.getFullYear(), now.getMonth());
+    wb.append(el("span", "wh", `${now.getMonth() + 1}월 주간`), el("span", "wh r", "40h 초과"), el("span", "wh r", "52h 초과"));
+    weeks.forEach((w, i) => {
+      const wk = el("span", "wk", `${i + 1}주`); wk.append(el("small", null, `${fmtH(w.h)}h`));
+      wb.append(wk, el("b", w.o40 ? null : "z", `${fmtH(w.o40)}h`), el("b", w.o52 ? "x" : "z", `${fmtH(w.o52)}h`));
+    });
+    const tot = el("div", "wt"); tot.append(el("span", null, "월 40h 초과 합계"), el("b", null, `${fmtH(weeks.reduce((a, w) => a + w.o40, 0))}h`));
+    wb.append(tot);
+  }
   bo.disabled = fullLeave;
 
   const row = $("#stamp-row"); row.innerHTML = "";
@@ -438,6 +452,24 @@ function shortName(n) {
   if (/s/.test(n)) n = n.split(/s+/)[0];
   if (/^[가-힣]{3,4}$/.test(n)) return n.slice(1);
   return n.slice(0, 3);
+}
+// ---- 연봉직 주간 근무시간 ----
+// 하루 근무시간: 근무 8h(반차 4h) + 잔업, 특근일은 특근 시간, 연차 0. 퇴근 안 찍은 지난 평일은 effDay로 8h.
+function dayHours(e) {
+  if (!e || e.type === "leave") return 0;
+  if (e.type === "holiday") return e.hw || 0;
+  if (!e.out) return 0;
+  return (e.type === "am" || e.type === "pm" ? 4 : 8) + (e.ot || 0);
+}
+// 그 달의 주(달력 줄과 같은 일~토, 1일이 든 주가 1주차)마다 합계·40h 초과·52h 초과
+function weekStats(uid, y, m) {
+  const first = new Date(y, m, 1), last = new Date(y, m + 1, 0), weeks = [];
+  for (let ws = new Date(y, m, 1 - first.getDay()); ws <= last; ws = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7)) {
+    let h = 0;
+    for (let i = 0; i < 7; i++) { const k = dkey(new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i)); h += dayHours(effDay(uid, k, docOf(uid).days[k])); }
+    weeks.push({ h, o40: Math.max(0, h - 40), o52: Math.max(0, h - 52) });
+  }
+  return weeks;
 }
 // 잔업불가·특근불가 표시 글자 (둘 다면 "잔특불가"). 특근일에는 잔업불가를 보이지 않음
 function flagLabel(e) {
@@ -754,13 +786,22 @@ function openSettings() {
     sh.append(field("st-nick", S.isAdmin ? "표시 이름 (달력·팀 현황에 보이는 이름)" : "표시 이름 (변경은 관리자에게 요청)", "text", doc.nick, { placeholder: "예: 김상주", maxlength: "20", disabled: !S.isAdmin }));
     const two = el("div", "two"); two.append(field("st-start", "정규 출근", "time", std.start), field("st-end", "정규 퇴근", "time", std.end)); sh.append(two);
     sh.append(field("st-ot", "잔업 시작", "time", std.otStart));
+    // 근무 형태: 연봉직이면 홈 화면 출근 칸에 주차별 40h·52h 초과 시간 표시
+    let salary = !!doc.salary;
+    const wf = el("div", "field"); wf.append(el("div", "flabel", "근무 형태"));
+    const wc = el("div", "chips types");
+    [[false, "일반"], [true, "연봉직"]].forEach(([v, l]) => {
+      const b = btn(null, l, () => { salary = v; wc.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); });
+      b.setAttribute("aria-pressed", v === salary); wc.append(b);
+    });
+    wf.append(wc); sh.append(wf);
     const imp = btn("ghost", "ERP 출퇴근 기록 붙여넣기", () => openImport(uid)); imp.style.alignSelf = "flex-start"; sh.append(imp);
     const act = el("div", "sheet-actions");
     if (S.mode === "firebase") act.append(btn("danger", "로그아웃", () => { closeSheet(); FBX.A.signOut(FBX.auth); }));
     act.append(btn("ghost", "취소", closeSheet), btn("primary green", "저장", () => {
       const nick = $("#st-nick").value.trim();
       if (S.isAdmin && !nick) { toast("표시 이름을 입력하세요"); $("#st-nick").focus(); return; }
-      saveProfile(uid, { ...(S.isAdmin ? { nick } : {}), std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
+      saveProfile(uid, { ...(S.isAdmin ? { nick } : {}), salary, std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
       closeSheet(); toast("설정을 저장했습니다");
     }));
     sh.append(act);
