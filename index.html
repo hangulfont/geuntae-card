@@ -483,10 +483,40 @@ header.top{gap:8px}
   /* 줄 높이는 내용만큼, 남는 높이만 나눠 가짐 (기록 많은 줄이 먼저 잘리지 않게) */
   html.fitcal #days{flex:1;min-height:0;grid-auto-rows:auto;align-content:stretch;overflow:hidden}
   html.fitcal .day{min-height:0;overflow:hidden}
-  html.fitcal .day .d{font-size:calc(12px * var(--pcz,1))}
-  html.fitcal .pc{font-size:calc(10.5px * var(--pcz,1))}
+  html.fitcal .day .d{font-size:calc(14px * var(--pcz,1))}
+  html.fitcal .pc{font-size:calc(var(--pcb,13px) * var(--pcz,1))}
   html.fitcal .day .hn{font-size:calc(9.5px * var(--pcz,1))}
 }
+/* PC 달력: 이름·시간·휴가·잔업불가 글자 크게, 상태 글자(오전반차·잔업불가 등)는 굵게 */
+@media (min-width:601px){
+  .day{padding:4px 5px;gap:2px}
+  .day .d{font-size:14px}
+  .pc{font-size:var(--pcb,13px);line-height:1.35;padding:1px 4px 1px 0;border-radius:4px}
+  .pc .nm{padding:0 5px;font-weight:600}
+  .pc b{font-weight:700}
+  .pc.lv b,.pc.no b{font-weight:700}
+  .pc.no b{color:var(--fg);opacity:.75}
+  .day .hn{font-size:11px}
+}
+/* 넓은 PC(1200px 이상): 출근·퇴근 카드를 달력 오른쪽에 두고 달력을 크게 */
+@media (min-width:1200px){
+  .wrap{max-width:1240px}
+  #view-me:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px;align-items:start}
+  #view-me > #viewing{grid-column:1/-1}
+  #view-me > .cal{grid-column:1;grid-row:2}
+  #view-me > #punch{grid-column:2;grid-row:2;position:sticky;top:10px;bottom:auto;box-shadow:none}
+  #view-me:not(:has(#viewing:not([hidden]))) > .cal,#view-me:not(:has(#viewing:not([hidden]))) > #punch{grid-row:1}
+  #punch .btns{grid-template-columns:1fr}
+  #punch .punch-head > div:first-child{flex-direction:column;align-items:flex-start;gap:0}
+  #punch .clock{font-size:34px}
+  #punch .leave-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  #punch .leave-row > span{grid-column:1/-1}
+  #punch .leave-row button{padding:6px 4px;font-size:13px}
+  #punch .today-off{margin-left:0;justify-content:flex-start}
+  #punch .punch-head{flex-wrap:wrap}
+}
+/* 좁은 PC(601~1199px, 카드가 달력 아래): 칸이 좁아 달력 글자를 11.5px로 */
+@media (min-width:601px) and (max-width:1199px){ :root{--pcb:11.5px} }
 </style>
 </head>
 <body>
