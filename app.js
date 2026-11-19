@@ -357,7 +357,10 @@ function fitCalendar() {
   window.scrollTo(0, 0);
   // 휴대폰: 하단 카드가 화면 아래 고정 → 카드와 거의 닿게 2px 간격
   // PC: 달력 아래에 카드가 이어짐 → 사이 간격(10px)과 아래 여백(10px)을 빼고 맞춤
-  const avail = window.innerHeight - $("#punch").offsetHeight - cal.getBoundingClientRect().top - (phone ? 2 : 20);
+  // 넓은 PC(1200px 이상)는 출근·퇴근 카드가 달력 오른쪽 → 달력이 화면 높이를 다 씀
+  const side = matchMedia("(min-width:1200px)").matches;
+  const avail = side ? window.innerHeight - cal.getBoundingClientRect().top - 12
+    : window.innerHeight - $("#punch").offsetHeight - cal.getBoundingClientRect().top - (phone ? 2 : 20);
   cal.style.height = Math.max(220, Math.floor(avail)) + "px";
   const grid = $("#days"), days = $$("#days .day:not(.blank)");
   const over = () => grid.scrollHeight > grid.clientHeight + 1 || days.some((d) => d.scrollHeight > d.clientHeight + 1);
