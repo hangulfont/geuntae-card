@@ -458,8 +458,11 @@ function renderPunch() {
 
 // 사람별 고정 색상 (5가지). uid 해시로 자리를 잡고, 겹치면 다음 빈 색으로
 const PERSON_COLORS = 5; // 5명까지 서로 다른 색 (6명째부터는 색이 겹침)
+// 사람 표시 순서 (달력 칸·범례·오늘 휴가 목록·팀 현황 공통). 목록에 없는 사람은 뒤에 가나다순
+const PERSON_ORDER = ["서정일", "변준령", "주대환", "윤민철", "이재민"];
 function personOrder() {
-  return Object.keys(S.docs).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : nameOf(a).localeCompare(nameOf(b), "ko")));
+  const rank = (u) => { const i = PERSON_ORDER.indexOf(nameOf(u)); return i < 0 ? PERSON_ORDER.length : i; };
+  return Object.keys(S.docs).sort((a, b) => rank(a) - rank(b) || nameOf(a).localeCompare(nameOf(b), "ko"));
 }
 function personColors() {
   const map = {}, used = new Set();
@@ -581,7 +584,7 @@ function renderTeam() {
   $("#team-title").textContent = `팀 현황 · ${S.month.getMonth() + 1}월`;
   $("#admin-row").hidden = !S.isAdmin;
   $("#btn-members").textContent = S.requests.length ? `멤버 관리 (승인 대기 ${S.requests.length})` : "멤버 관리";
-  const list = Object.keys(S.docs).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : nameOf(a).localeCompare(nameOf(b), "ko")));
+  const list = personOrder();
   if (!list.length) {
     const tr = document.createElement("tr"); const td = document.createElement("td"); td.colSpan = 9; td.className = "empty";
     td.textContent = "아직 기록한 사람이 없습니다. 멤버를 승인하고 퇴근을 눌러달라고 하세요."; tr.append(td); tb.append(tr); return;
