@@ -508,6 +508,8 @@ function flagLabel(e) {
 function dayMark(e) {
   if (!e) return null;
   if (e.type === "holiday" && (e.hw > 0 || e.out)) return { cls: "hw", text: `특${fmtH(e.hw || 0)}h` };
+  // 특근으로만 정해 두고 아직 퇴근을 안 찍은 날 = 예정 특근. 퇴근을 찍으면 실제 특근 시간으로 바뀜
+  if (e.type === "holiday") return { cls: "hw", text: "예특" };
   if (e.ot > 0) return { cls: "ot", text: `${fmtH(e.ot)}h` };
   if (isLeave(e.type)) return { cls: "lv", text: e.type === "leave" ? "연차" : e.type === "am" ? "오전" : "오후" };
   const fl = flagLabel(e); if (fl) return { cls: "no", text: fl };
