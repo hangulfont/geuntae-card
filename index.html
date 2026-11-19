@@ -381,9 +381,9 @@ header.top{gap:8px}
   /* 달력이 남는 세로 공간을 채워 달력과 출근·퇴근 사이 빈 곳을 없앰 */
   /* 홈 화면 앱: 아래 홈 표시줄 여백은 출근·퇴근 카드 안에 이미 들어 있으므로 html에서 또 더하지 않음 (두 번 더하면 34px 넘쳐 스크롤됨) */
   html{padding-bottom:0}
-  body{padding-bottom:calc(var(--punch-h,170px) + 8px)}
-  #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 16px - env(safe-area-inset-top,0px))}
-  html.standalone #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 20px - env(safe-area-inset-top,0px))}
+  body{padding-bottom:calc(var(--punch-h,170px) + 16px)} /* 월 합계와 하단 카드 사이 간격 */
+  #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 24px - env(safe-area-inset-top,0px))}
+  html.standalone #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 28px - env(safe-area-inset-top,0px))}
   /* 하단 버튼 크게: 오늘 줄은 5칸 꽉 채운 큰 버튼, 출근·퇴근 버튼도 키움 */
   .leave-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
   .leave-row > span{display:none}
