@@ -396,8 +396,8 @@ function renderPunch() {
   const set = document.createElement("button"); set.textContent = "내 설정"; set.onclick = openSettings; row.append(set);
 }
 
-// 사람별 고정 색상 (6가지). uid 해시로 자리를 잡고, 겹치면 다음 빈 색으로
-const PERSON_COLORS = 6;
+// 사람별 고정 색상 (5가지). uid 해시로 자리를 잡고, 겹치면 다음 빈 색으로
+const PERSON_COLORS = 5; // 5명까지 서로 다른 색 (6명째부터는 색이 겹침)
 function personOrder() {
   return Object.keys(S.docs).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : nameOf(a).localeCompare(nameOf(b), "ko")));
 }
