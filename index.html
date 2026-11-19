@@ -326,6 +326,17 @@ html.standalone{padding-top:calc(env(safe-area-inset-top,0px) + 4px)}
   .stamp-row{display:none}
   #punch{position:sticky;bottom:8px;z-index:5;box-shadow:0 -4px 18px rgb(0 0 0 / .18)}
 }
+/* 연봉직: 출근 버튼 자리에 주차별 40h·52h 초과 시간 */
+.weekbox{background:var(--surface-2);border-radius:14px;padding:8px 10px;display:grid;grid-template-columns:1fr auto auto;column-gap:10px;row-gap:1px;align-content:center;font-size:12px;line-height:1.35;min-width:0}
+.weekbox .wh{font-size:10.5px;color:var(--muted);font-weight:600}
+.weekbox .wh.r,.weekbox b{text-align:right}
+.weekbox .wk{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.weekbox .wk small{color:var(--muted);font-family:var(--mono);font-size:10.5px;margin-left:4px}
+.weekbox b{font-family:var(--mono);font-weight:600;color:var(--ot)}
+.weekbox b.z{color:var(--muted);font-weight:500}
+.weekbox b.x{color:var(--hw)}
+.weekbox .wt{grid-column:1/-1;display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:3px;padding-top:3px;font-weight:700}
+.weekbox .wt b{color:var(--ot)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 /* ---- 사람별 이름·잔업 칩 (달력 한눈에 보기) ---- */
 body{word-break:keep-all}
@@ -501,6 +512,7 @@ header.top{gap:8px}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
           <span class="txt"><span class="lbl">출근</span><span class="sub">누르면 현재 시각 기록</span></span>
         </button>
+        <div class="weekbox" id="weekbox" hidden aria-label="연봉직 주간 근무시간"></div>
         <button class="pbtn out" id="btn-out">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
           <span class="txt"><span class="lbl">퇴근</span><span class="sub">잔업 시간 선택</span></span>
