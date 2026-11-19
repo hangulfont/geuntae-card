@@ -409,7 +409,7 @@ function renderPunch() {
       const label = pe.type === "leave" ? "연차" : pe.type === "am" ? (phone ? "오전" : "오전반차") : pe.type === "pm" ? (phone ? "오후" : "오후반차") : flagLabel(pe);
       if (!label) return;
       const c = el("span", "to" + (label === flagLabel(pe) ? " no" : ""));
-      c.style.setProperty("--pc", pcVar(pu, colors)); if (pu !== S.myId) c.classList.add("other");
+      c.style.setProperty("--pc", `var(--p${colors[pu]})`);
       c.append(el("span", "nm", phone ? shortName(nameOf(pu)) : nameOf(pu)), el("b", null, label));
       box.append(c);
     });
@@ -465,8 +465,6 @@ function personOrder() {
   return Object.keys(S.docs).sort((a, b) => rank(a) - rank(b) || nameOf(a).localeCompare(nameOf(b), "ko"));
 }
 // 색은 표시 순서대로: 서정일 파랑, 변준령 노랑, 주대환 초록, 윤민철 보라, 이재민 주황, 6번째 회색
-// 로그인한 본인만 자기 색으로, 다른 사람은 무채색(포인트 색 없음). 색 배정 자체는 그대로
-const pcVar = (uid, colors) => (uid === S.myId ? `var(--p${colors[uid]})` : "var(--pn)");
 function personColors() {
   const map = {};
   personOrder().forEach((uid, i) => { map[uid] = i % PERSON_COLORS; });
@@ -556,7 +554,7 @@ function renderCalendar() {
       const mk = dayMark(S.docs[pu].days[k]); if (!mk) return;
       const r = document.createElement("span");
       r.className = `pc ${mk.cls}${pu === uid ? " me" : ""}`;
-      r.style.setProperty("--pc", pcVar(pu, colors)); if (pu !== S.myId) r.classList.add("other");
+      r.style.setProperty("--pc", `var(--p${colors[pu]})`);
       r.append(el("span", "nm nm-full", nameOf(pu)), el("span", "nm nm-short", shortName(nameOf(pu))), el("b", null, mk.text));
       cell.append(r);
     });
@@ -565,7 +563,7 @@ function renderCalendar() {
   }
   // 범례: 사람별 색 + 표기 설명
   const lg = $("#legend"); lg.innerHTML = "";
-  people.forEach((pu) => { const s = el("span", "lg-p", nameOf(pu)); s.style.setProperty("--pc", pcVar(pu, colors)); lg.append(s); });
+  people.forEach((pu) => { const s = el("span", "lg-p", nameOf(pu)); s.style.setProperty("--pc", `var(--p${colors[pu]})`); lg.append(s); });
   lg.append(el("span", "lg-k", "숫자=잔업 · 특=특근"));
   const sum = $("#sum"); sum.innerHTML = "";
   [["근무", workDays + "일", ""], ["잔특", fmtH(otSum + hwSum) + "h", "t"], ["잔업", fmtH(otSum) + "h", "o"], ["특근", fmtH(hwSum) + "h", "h"], ["연차", fmtH(leaveDays) + "일", ""]]
