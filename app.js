@@ -343,7 +343,24 @@ function showGate(kind, code) {
 function render() {
   if ($("#app").hidden) return;
   renderHeader(); renderPunch(); renderCalendar(); renderTeam();
+  fitCalendar();
 }
+// 휴대폰 '내 근태': 페이지가 위아래로 스크롤되지 않게 달력을 남은 높이에 딱 맞추고,
+// 기록이 많아 칸이 넘치면 달력 안 이름·시간 글자를 조금씩 줄여 맞춤 (팀 현황·PC는 그대로)
+function fitCalendar() {
+  const root = document.documentElement, cal = $("#view-me .cal");
+  const on = matchMedia("(max-width:600px)").matches && S.tab === "me" && !$("#app").hidden && !$("#view-me").hidden;
+  root.classList.toggle("fitcal", on);
+  root.style.setProperty("--pcz", 1);
+  if (!on) { cal.style.height = ""; return; }
+  window.scrollTo(0, 0);
+  const avail = window.innerHeight - $("#punch").offsetHeight - 14 - cal.getBoundingClientRect().top;
+  cal.style.height = Math.max(220, Math.floor(avail)) + "px";
+  const days = $$("#days .day:not(.blank)");
+  const over = () => days.some((d) => d.scrollHeight > d.clientHeight + 1);
+  for (let z = 1; over() && z > 0.6; ) { z = Math.round((z - 0.05) * 100) / 100; root.style.setProperty("--pcz", z); }
+}
+addEventListener("resize", () => fitCalendar());
 function renderHeader() {
   $("#tab-me").setAttribute("aria-selected", S.tab === "me");
   $("#tab-team").setAttribute("aria-selected", S.tab === "team");
@@ -1071,6 +1088,7 @@ $("#btn-setup").onclick = async () => {
 if (window.ResizeObserver) new ResizeObserver(() => {
   const h = $("#punch").offsetHeight;
   if (h) document.documentElement.style.setProperty("--punch-h", h + "px");
+  fitCalendar();
 }).observe($("#punch"));
 
 // 이미 홈 화면 앱으로 실행 중이면 "앱으로 사용법" 버튼 숨김

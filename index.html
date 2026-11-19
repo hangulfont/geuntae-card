@@ -456,6 +456,19 @@ header.top{gap:8px}
   .pbtn{min-height:54px;padding:6px 10px}
   .weekbox{padding:5px 8px;line-height:1.25}
 }
+/* 휴대폰 '내 근태': 페이지 스크롤 없이 달력을 남은 높이에 맞춤 (높이는 app.js fitCalendar가 정함) */
+@media (max-width:600px){
+  html.fitcal,html.fitcal body{overflow:hidden;height:100%}
+  html.fitcal body{padding-bottom:0}
+  html.fitcal #app:not([hidden]){min-height:0}
+  html.fitcal #view-me .cal{display:flex;flex-direction:column;overflow:hidden;flex:none}
+  html.fitcal #days{flex:1;min-height:0;grid-auto-rows:minmax(0,1fr)}
+  html.fitcal .day{min-height:0;overflow:hidden}
+  html.fitcal .day .d{font-size:calc(11px * var(--pcz,1));line-height:1.15}
+  html.fitcal .pc{font-size:calc(9.5px * var(--pcz,1));line-height:1.2}
+  html.fitcal .pc.no .nm{font-size:calc(8.5px * var(--pcz,1))}
+  html.fitcal .pc.no b{font-size:calc(7.5px * var(--pcz,1))}
+}
 </style>
 </head>
 <body>
