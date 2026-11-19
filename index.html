@@ -475,6 +475,18 @@ header.top{gap:8px}
 .brand > div{flex-direction:row;align-items:baseline;gap:8px}
 .brand .whoami-btn{font-size:14px}
 @media (max-width:600px){ .brand > div{gap:6px} .brand .whoami-btn{font-size:13px} }
+/* PC '내 근태': 페이지 스크롤 없이 달력을 남은 높이에 맞춤 (높이는 app.js fitCalendar가 정함) */
+@media (min-width:601px){
+  html.fitcal,html.fitcal body{overflow:hidden;height:100%}
+  html.fitcal body{padding-bottom:10px}
+  html.fitcal #view-me .cal{display:flex;flex-direction:column;overflow:hidden;flex:none}
+  /* 줄 높이는 내용만큼, 남는 높이만 나눠 가짐 (기록 많은 줄이 먼저 잘리지 않게) */
+  html.fitcal #days{flex:1;min-height:0;grid-auto-rows:auto;align-content:stretch;overflow:hidden}
+  html.fitcal .day{min-height:0;overflow:hidden}
+  html.fitcal .day .d{font-size:calc(12px * var(--pcz,1))}
+  html.fitcal .pc{font-size:calc(10.5px * var(--pcz,1))}
+  html.fitcal .day .hn{font-size:calc(9.5px * var(--pcz,1))}
+}
 </style>
 </head>
 <body>
