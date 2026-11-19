@@ -456,22 +456,18 @@ function renderPunch() {
   const set = document.createElement("button"); set.textContent = "내 설정"; set.onclick = openSettings; row.append(set);
 }
 
-// 사람별 고정 색상 (5가지). uid 해시로 자리를 잡고, 겹치면 다음 빈 색으로
-const PERSON_COLORS = 5; // 5명까지 서로 다른 색 (6명째부터는 색이 겹침)
+// 사람별 색 6가지 (index.html의 --p0~--p5), 표시 순서대로 하나씩
+const PERSON_COLORS = 6; // 6명까지 서로 다른 색 (7명째부터는 색이 겹침)
 // 사람 표시 순서 (달력 칸·범례·오늘 휴가 목록·팀 현황 공통). 목록에 없는 사람은 뒤에 가나다순
 const PERSON_ORDER = ["서정일", "변준령", "주대환", "윤민철", "이재민"];
 function personOrder() {
   const rank = (u) => { const i = PERSON_ORDER.indexOf(nameOf(u)); return i < 0 ? PERSON_ORDER.length : i; };
   return Object.keys(S.docs).sort((a, b) => rank(a) - rank(b) || nameOf(a).localeCompare(nameOf(b), "ko"));
 }
+// 색은 표시 순서대로: 서정일 파랑, 변준령 노랑, 주대환 초록, 윤민철 보라, 이재민 주황, 6번째 회색
 function personColors() {
-  const map = {}, used = new Set();
-  const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
-  Object.keys(S.docs).sort().forEach((uid) => {
-    let i = hash(uid) % PERSON_COLORS, n = 0;
-    while (used.has(i) && n < PERSON_COLORS) { i = (i + 1) % PERSON_COLORS; n++; }
-    used.add(i); map[uid] = i;
-  });
+  const map = {};
+  personOrder().forEach((uid, i) => { map[uid] = i % PERSON_COLORS; });
   return map;
 }
 // 휴대폰용 짧은 이름: 한글 3~4자는 성을 뺀 이름(김상주→상주), 띄어쓰기가 있으면 첫 단어
