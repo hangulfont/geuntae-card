@@ -397,9 +397,9 @@ header.top{gap:8px}
   #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 24px - env(safe-area-inset-top,0px))}
   html.standalone #app:not([hidden]){min-height:calc(100dvh - var(--punch-h,170px) - 28px - env(safe-area-inset-top,0px))}
   /* 하단 버튼 크게: 오늘 줄은 5칸 꽉 채운 큰 버튼, 출근·퇴근 버튼도 키움 */
-  .leave-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .leave-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
   .leave-row > span{display:none}
-  .leave-row button{min-height:40px;padding:0 2px;font-size:14px;border-radius:10px;white-space:nowrap}
+  .leave-row button{min-height:40px;padding:0 1px;font-size:13px;letter-spacing:-.03em;border-radius:10px;white-space:nowrap}
   .pbtn{min-height:66px}
   .pbtn svg{width:26px;height:26px}
   .pbtn .lbl{font-size:20px}
@@ -494,6 +494,7 @@ header.top{gap:8px}
         <button data-type="leave" aria-pressed="false">연차</button>
         <button data-type="holiday" aria-pressed="false" title="오늘을 특근으로 기록 (주말·공휴일은 자동)">특근</button>
         <button data-flag="noOT" aria-pressed="false" title="오늘은 잔업을 할 수 없음: 잔업 0으로 기록, 달력·팀 현황에 표시">잔업불가</button>
+        <button data-flag="noHW" aria-pressed="false" title="특근을 할 수 없음: 달력·팀 현황에 표시만">특근불가</button>
       </div>
       <div class="btns">
         <button class="pbtn in" id="btn-in">
