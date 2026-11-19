@@ -418,7 +418,7 @@ function renderPunch() {
     const weeks = weekStats(uid, now.getFullYear(), now.getMonth());
     wb.append(el("span", "wh", `${now.getMonth() + 1}월 주간`), el("span", "wh r", "40h 초과"), el("span", "wh r", "52h 초과"));
     weeks.forEach((w, i) => {
-      const wk = el("span", "wk", `${i + 1}주`); wk.append(el("small", null, `${fmtH(w.h)}h`));
+      const wk = el("span", "wk", `${i + 1}주`); wk.title = w.range; wk.append(el("small", null, `${fmtH(w.h)}h`));
       wb.append(wk, el("b", w.o40 ? null : "z", `${fmtH(w.o40)}h`), el("b", w.o52 ? "x" : "z", `${fmtH(w.o52)}h`));
     });
     const tot = el("div", "wt"); tot.append(el("span", null, "월 40h 초과 합계"), el("b", null, `${fmtH(weeks.reduce((a, w) => a + w.o40, 0))}h`));
@@ -455,19 +455,24 @@ function shortName(n) {
 }
 // ---- 연봉직 주간 근무시간 ----
 // 하루 근무시간: 근무 8h(반차 4h) + 잔업, 특근일은 특근 시간, 연차 0. 퇴근 안 찍은 지난 평일은 effDay로 8h.
-function dayHours(e) {
-  if (!e || e.type === "leave") return 0;
+// 하루 근무시간: 연차 8h, 반차는 반은 휴가로 인정해 8h + 잔업, 근무 8h + 잔업, 토·일·공휴일은 특근 시간만.
+// 퇴근 안 찍은 지난 평일은 effDay로 정규 근무(8h), 지난 반차도 8h. 오늘은 퇴근을 찍어야 포함.
+function dayHours(e, k) {
+  if (!e) return 0;
+  if (e.type === "leave") return 8;
   if (e.type === "holiday") return e.hw || 0;
-  if (!e.out) return 0;
-  return (e.type === "am" || e.type === "pm" ? 4 : 8) + (e.ot || 0);
+  if (e.type === "am" || e.type === "pm") return e.out ? 8 + (e.ot || 0) : k < dkey(new Date()) ? 8 : 0;
+  return e.out ? 8 + (e.ot || 0) : 0;
 }
-// 그 달의 주(달력 줄과 같은 일~토, 1일이 든 주가 1주차)마다 합계·40h 초과·52h 초과
+// 그 달의 주(월~일)마다 합계·40h 초과·52h 초과. 그 달 평일(월~금)이 하루라도 있는 주만, 첫 주가 1주차.
 function weekStats(uid, y, m) {
-  const first = new Date(y, m, 1), last = new Date(y, m + 1, 0), weeks = [];
-  for (let ws = new Date(y, m, 1 - first.getDay()); ws <= last; ws = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7)) {
+  const last = new Date(y, m + 1, 0), weeks = [];
+  let d = new Date(y, m, 1); while (d.getDay() === 0 || d.getDay() === 6) d = new Date(y, m, d.getDate() + 1); // 그 달 첫 평일
+  for (let ws = new Date(y, m, d.getDate() - ((d.getDay() + 6) % 7)); ws <= last; ws = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7)) {
     let h = 0;
-    for (let i = 0; i < 7; i++) { const k = dkey(new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i)); h += dayHours(effDay(uid, k, docOf(uid).days[k])); }
-    weeks.push({ h, o40: Math.max(0, h - 40), o52: Math.max(0, h - 52) });
+    for (let i = 0; i < 7; i++) { const k = dkey(new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i)); h += dayHours(effDay(uid, k, docOf(uid).days[k]), k); }
+    const we = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6);
+    weeks.push({ h, o40: Math.max(0, h - 40), o52: Math.max(0, h - 52), range: `${ws.getMonth() + 1}/${ws.getDate()}~${we.getMonth() + 1}/${we.getDate()}` });
   }
   return weeks;
 }
@@ -787,12 +792,13 @@ function openSettings() {
     const two = el("div", "two"); two.append(field("st-start", "정규 출근", "time", std.start), field("st-end", "정규 퇴근", "time", std.end)); sh.append(two);
     sh.append(field("st-ot", "잔업 시작", "time", std.otStart));
     // 근무 형태: 연봉직이면 홈 화면 출근 칸에 주차별 40h·52h 초과 시간 표시
+    // 근무 형태는 관리자가 정함 (관리자 본인은 여기서, 다른 사람은 멤버 관리에서)
     let salary = !!doc.salary;
-    const wf = el("div", "field"); wf.append(el("div", "flabel", "근무 형태"));
+    const wf = el("div", "field"); wf.append(el("div", "flabel", S.isAdmin ? "근무 형태" : "근무 형태 (관리자가 정함)"));
     const wc = el("div", "chips types");
     [[false, "일반"], [true, "연봉직"]].forEach(([v, l]) => {
       const b = btn(null, l, () => { salary = v; wc.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); });
-      b.setAttribute("aria-pressed", v === salary); wc.append(b);
+      b.setAttribute("aria-pressed", v === salary); b.disabled = !S.isAdmin; wc.append(b);
     });
     wf.append(wc); sh.append(wf);
     const imp = btn("ghost", "ERP 출퇴근 기록 붙여넣기", () => openImport(uid)); imp.style.alignSelf = "flex-start"; sh.append(imp);
@@ -801,7 +807,7 @@ function openSettings() {
     act.append(btn("ghost", "취소", closeSheet), btn("primary green", "저장", () => {
       const nick = $("#st-nick").value.trim();
       if (S.isAdmin && !nick) { toast("표시 이름을 입력하세요"); $("#st-nick").focus(); return; }
-      saveProfile(uid, { ...(S.isAdmin ? { nick } : {}), salary, std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
+      saveProfile(uid, { ...(S.isAdmin ? { nick, salary } : {}), std: { start: $("#st-start").value || DEFAULT_STD.start, end: $("#st-end").value || DEFAULT_STD.end, otStart: $("#st-ot").value || DEFAULT_STD.otStart } });
       closeSheet(); toast("설정을 저장했습니다");
     }));
     sh.append(act);
@@ -917,10 +923,19 @@ function openMembers() {
     const uidOf = (m) => Object.keys(S.docs).find((x) => (S.docs[x].email || "").toLowerCase() === m);
     // 이름 변경은 관리자만: 기록이 있는(한 번이라도 로그인한) 사람은 '이름' 버튼으로 바꿈
     const nameBtn = (m) => { const u = uidOf(m); if (!u) return null; return btn(null, "이름", () => openName(false, u)); };
-    S.access.admins.forEach((m) => { const it = el("div", "it"); it.append(el("span", null, label(m))); const a = el("div", "it-acts"); const nb = nameBtn(m); if (nb) a.append(nb); a.append(el("span", "small", "관리자")); it.append(a); l.append(it); });
+    // 근무 형태(일반/연봉직): 누를 때마다 바뀜
+    const typeBtn = (m) => {
+      const u = uidOf(m); if (!u) return null;
+      const sal = !!S.docs[u].salary;
+      const b = btn(sal ? "sal on" : "sal", sal ? "연봉직" : "일반", () => {
+        saveProfile(u, { salary: !sal }); toast(`${nameOf(u)}: ${sal ? "일반" : "연봉직"}으로 바꿨습니다`); openMembers();
+      });
+      b.title = "근무 형태 바꾸기"; return b;
+    };
+    S.access.admins.forEach((m) => { const it = el("div", "it"); it.append(el("span", null, label(m))); const a = el("div", "it-acts"); const nb = nameBtn(m); if (nb) a.append(nb); const tb = typeBtn(m); if (tb) a.append(tb); a.append(el("span", "small", "관리자")); it.append(a); l.append(it); });
     S.access.members.filter((m) => !S.access.admins.includes(m)).forEach((m) => {
       const it = el("div", "it"); it.append(el("span", null, label(m)));
-      const acts = el("div", "it-acts"); const nb = nameBtn(m); if (nb) acts.append(nb);
+      const acts = el("div", "it-acts"); const nb = nameBtn(m); if (nb) acts.append(nb); const tb = typeBtn(m); if (tb) acts.append(tb);
       let armed = false;
       const rm = btn(null, "제외", async () => { if (!armed) { armed = true; rm.textContent = "한 번 더"; return; } await F.updateDoc(accRef, { members: F.arrayRemove(m) }); toast("제외했습니다"); openMembers(); });
       acts.append(rm); it.append(acts); l.append(it);
