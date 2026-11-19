@@ -354,7 +354,7 @@ function fitCalendar() {
   root.style.setProperty("--pcz", 1);
   if (!on) { cal.style.height = ""; return; }
   window.scrollTo(0, 0);
-  const avail = window.innerHeight - $("#punch").offsetHeight - 6 - cal.getBoundingClientRect().top; // 하단 카드와 6px 간격
+  const avail = window.innerHeight - $("#punch").offsetHeight - 2 - cal.getBoundingClientRect().top; // 하단 카드와 거의 닿게 2px 간격
   cal.style.height = Math.max(220, Math.floor(avail)) + "px";
   const days = $$("#days .day:not(.blank)");
   const over = () => days.some((d) => d.scrollHeight > d.clientHeight + 1);
