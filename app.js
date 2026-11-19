@@ -349,16 +349,21 @@ function render() {
 // 기록이 많아 칸이 넘치면 달력 안 이름·시간 글자를 조금씩 줄여 맞춤 (팀 현황·PC는 그대로)
 function fitCalendar() {
   const root = document.documentElement, cal = $("#view-me .cal");
-  const on = matchMedia("(max-width:600px)").matches && S.tab === "me" && !$("#app").hidden && !$("#view-me").hidden;
+  const phone = matchMedia("(max-width:600px)").matches;
+  const on = S.tab === "me" && !$("#app").hidden && !$("#view-me").hidden; // PC도 스크롤 없이 맞춤
   root.classList.toggle("fitcal", on);
   root.style.setProperty("--pcz", 1);
   if (!on) { cal.style.height = ""; return; }
   window.scrollTo(0, 0);
-  const avail = window.innerHeight - $("#punch").offsetHeight - 2 - cal.getBoundingClientRect().top; // 하단 카드와 거의 닿게 2px 간격
+  // 휴대폰: 하단 카드가 화면 아래 고정 → 카드와 거의 닿게 2px 간격
+  // PC: 달력 아래에 카드가 이어짐 → 사이 간격(10px)과 아래 여백(10px)을 빼고 맞춤
+  const avail = window.innerHeight - $("#punch").offsetHeight - cal.getBoundingClientRect().top - (phone ? 2 : 20);
   cal.style.height = Math.max(220, Math.floor(avail)) + "px";
-  const days = $$("#days .day:not(.blank)");
-  const over = () => days.some((d) => d.scrollHeight > d.clientHeight + 1);
+  const grid = $("#days"), days = $$("#days .day:not(.blank)");
+  const over = () => grid.scrollHeight > grid.clientHeight + 1 || days.some((d) => d.scrollHeight > d.clientHeight + 1);
   for (let z = 1; over() && z > 0.6; ) { z = Math.round((z - 0.05) * 100) / 100; root.style.setProperty("--pcz", z); }
+  // PC에서 창이 너무 낮아 60%로 줄여도 안 들어가면 내용이 가려지지 않게 맞춤을 풀고 스크롤 허용
+  if (!phone && over()) { root.classList.remove("fitcal"); root.style.setProperty("--pcz", 1); cal.style.height = ""; }
 }
 addEventListener("resize", () => fitCalendar());
 function renderHeader() {
