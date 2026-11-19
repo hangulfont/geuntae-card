@@ -508,11 +508,12 @@ function flagLabel(e) {
 function dayMark(e) {
   if (!e) return null;
   if (e.type === "holiday" && (e.hw > 0 || e.out)) return { cls: "hw", text: `특${fmtH(e.hw || 0)}h` };
-  // 특근으로만 정해 두고 아직 퇴근을 안 찍은 날 = 예정 특근. 퇴근을 찍으면 실제 특근 시간으로 바뀜
-  if (e.type === "holiday") return { cls: "hw", text: "예특" };
   if (e.ot > 0) return { cls: "ot", text: `${fmtH(e.ot)}h` };
   if (isLeave(e.type)) return { cls: "lv", text: e.type === "leave" ? "연차" : e.type === "am" ? "오전" : "오후" };
   const fl = flagLabel(e); if (fl) return { cls: "no", text: fl };
+  // 특근으로 정해 두고 아직 퇴근을 안 찍은 날 = 예정 특근(예특). 특근불가가 켜진 날은 위에서 특근불가로 표시
+  // 퇴근을 찍으면 실제 특근 시간으로 바뀜
+  if (e.type === "holiday") return { cls: "hw", text: "예특" };
   return null;
 }
 
@@ -720,6 +721,7 @@ function openDay(uid, k) {
   const editable = canWrite(uid);
   const [y, mo, d] = k.split("-").map(Number); const w = new Date(y, mo - 1, d).getDay();
   let type = e.type || (isOffDay(k) ? "holiday" : "work"), ot = e.ot || 0, hw = e.hw || 0, noOT = !!e.noOT, noHW = !!e.noHW;
+  let typeChosen = !!e.type; // 주말 기본값 '특근'을 고르지 않았으면 예특으로 저장하지 않음
   sheet((sh) => {
     sh.append(el("h3", null, `${mo}월 ${d}일 (${DOW[w]})${HOLIDAYS[k] ? " · " + HOLIDAYS[k] : ""}`),
       el("p", "hint", `${nameOf(uid)}${editable ? "" : " · 보기 전용"}`));
@@ -727,7 +729,7 @@ function openDay(uid, k) {
     const tc = el("div", "chips types");
     // 출장은 쓰지 않아 선택지에서 뺌 (예전에 출장으로 저장된 날은 그대로 보이도록 그때만 표시)
     Object.entries(TYPES).filter(([v]) => v !== "trip" || type === "trip").forEach(([v, l]) => {
-      const b = btn(null, l, () => { type = v; tc.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); times.hidden = type === "leave"; syncKind(); });
+      const b = btn(null, l, () => { type = v; typeChosen = true; tc.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); times.hidden = type === "leave"; syncKind(); });
       b.setAttribute("aria-pressed", v === type); b.disabled = !editable; tc.append(b);
     });
     tl.append(tc); sh.append(tl);
@@ -785,9 +787,10 @@ function openDay(uid, k) {
         else ot = type === "pm" ? 0 : suggestOT(out, std);
       }
       const entry = type === "leave" ? clean({ type, note })
+        : type === "holiday" && !typeChosen && !out && !inT && !(touched && hw > 0) ? clean({ note, noHW: noHW || null }) // 특근불가만 켠 주말 등: 구분 없이 표시만
         : type === "holiday" ? clean({ type, in: inT, out, hw: out || touched ? hw : 0, note, noHW: noHW || null })
         : clean({ type, in: inT, out, ot: out && !noOT ? ot : 0, note, noOT: noOT || null, noHW: noHW || null });
-      saveDay(uid, k, entry); closeSheet(); toast("저장했습니다");
+      saveDay(uid, k, Object.keys(entry).length ? entry : null); closeSheet(); toast("저장했습니다"); // 남길 내용이 없으면 기록을 만들지 않음
     }));
     sh.append(act);
 
