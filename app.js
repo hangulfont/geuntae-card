@@ -664,7 +664,8 @@ function openDay(uid, k) {
       el("p", "hint", `${nameOf(uid)}${editable ? "" : " · 보기 전용"}`));
     const tl = el("div", "field"); tl.append(el("div", "flabel", "구분"));
     const tc = el("div", "chips types");
-    Object.entries(TYPES).forEach(([v, l]) => {
+    // 출장은 쓰지 않아 선택지에서 뺌 (예전에 출장으로 저장된 날은 그대로 보이도록 그때만 표시)
+    Object.entries(TYPES).filter(([v]) => v !== "trip" || type === "trip").forEach(([v, l]) => {
       const b = btn(null, l, () => { type = v; tc.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); times.hidden = type === "leave"; syncKind(); });
       b.setAttribute("aria-pressed", v === type); b.disabled = !editable; tc.append(b);
     });
